@@ -1,0 +1,161 @@
+"""
+train.py
+--------
+Εκπαιδεύει & συγκρίνει πολλαπλά μοντέλα Μηχανικής Μάθησης για ανίχνευση
+επιθέσεων σε SDN, και αποθηκεύει το καλύτερο μαζί με τον scaler & τον encoder.
+
+Μοντέλα (τα πιο διαδεδομένα στη βιβλιογραφία SDN IDS):
+  - Random Forest
+  - Decision Tree
+  - K-Nearest Neighbors
+  - SVM (RBF)
+  - Logistic Regression (baseline)
+  - MLP (μικρό νευρωνικό δίκτυο)
+
+Χρήση:
+  python3 ml_pipeline/train.py                # τρέχει στο συνθετικό dataset
+  python3 ml_pipeline/train.py --insdn        # τρέχει στο πραγματικό InSDN
+"""
+
+import os
+import sys
+import time
+import argparse
+import json
+import numpy as np
+import pandas as pd
+import joblib
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+)
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import config
+import preprocess
+
+
+def build_models():
+    """Επιστρέφει τα μοντέλα προς σύγκριση."""
+    return {
+        "Random Forest": RandomForestClassifier(
+            n_estimators=120, max_depth=None, n_jobs=-1,
+            random_state=config.RANDOM_STATE,
+        ),
+        "Decision Tree": DecisionTreeClassifier(
+            max_depth=20, random_state=config.RANDOM_STATE,
+        ),
+        "KNN": KNeighborsClassifier(n_neighbors=5, n_jobs=-1),
+        "SVM (RBF)": SVC(
+            kernel="rbf", C=10, gamma="scale", probability=False,
+            random_state=config.RANDOM_STATE,
+        ),
+        "Logistic Regression": LogisticRegression(
+            max_iter=1000, random_state=config.RANDOM_STATE,
+        ),
+        "MLP (Neural Net)": MLPClassifier(
+            hidden_layer_sizes=(64, 32), max_iter=300,
+            random_state=config.RANDOM_STATE,
+        ),
+    }
+
+
+def evaluate_model(model, X_test, y_test):
+    """Υπολογίζει τις βασικές μετρικές αξιολόγησης (macro-averaged)."""
+    t0 = time.perf_counter()
+    y_pred = model.predict(X_test)
+    pred_time = time.perf_counter() - t0
+    return {
+        "accuracy": accuracy_score(y_test, y_pred),
+        "precision": precision_score(y_test, y_pred, average="macro", zero_division=0),
+        "recall": recall_score(y_test, y_pred, average="macro", zero_division=0),
+        "f1": f1_score(y_test, y_pred, average="macro", zero_division=0),
+        "pred_time_s": pred_time,
+        "y_pred": y_pred,
+    }
+
+
+def main(use_insdn=False):
+    os.makedirs(config.MODELS_DIR, exist_ok=True)
+    os.makedirs(config.RESULTS_DIR, exist_ok=True)
+
+    # --- Φόρτωση δεδομένων ---
+    if use_insdn:
+        print("[*] Φόρτωση πραγματικού InSDN dataset...")
+        df = preprocess.load_insdn()
+    else:
+        print("[*] Φόρτωση συνθετικού dataset (για ανάπτυξη pipeline)...")
+        df = preprocess.load_synthetic()
+
+    print(f"    Σύνολο ροών: {len(df)} | Κλάσεις: {df[config.LABEL_COL].nunique()}")
+    data = preprocess.prepare(df, scale=True)
+    X_train, X_test = data["X_train"], data["X_test"]
+    y_train, y_test = data["y_train"], data["y_test"]
+    class_names = data["class_names"]
+
+    # --- Εκπαίδευση & σύγκριση ---
+    results = []
+    trained = {}
+    for name, model in build_models().items():
+        print(f"\n[*] Εκπαίδευση: {name}")
+        t0 = time.perf_counter()
+        model.fit(X_train, y_train)
+        train_time = time.perf_counter() - t0
+        metrics = evaluate_model(model, X_test, y_test)
+        trained[name] = model
+        results.append({
+            "model": name,
+            "accuracy": metrics["accuracy"],
+            "precision": metrics["precision"],
+            "recall": metrics["recall"],
+            "f1": metrics["f1"],
+            "train_time_s": train_time,
+            "pred_time_s": metrics["pred_time_s"],
+        })
+        print(f"    Accuracy={metrics['accuracy']:.4f}  F1={metrics['f1']:.4f}  "
+              f"(train {train_time:.2f}s)")
+
+    res_df = pd.DataFrame(results).sort_values("f1", ascending=False).reset_index(drop=True)
+    print("\n" + "=" * 70)
+    print("ΣΥΓΚΡΙΤΙΚΑ ΑΠΟΤΕΛΕΣΜΑΤΑ (ταξινόμηση κατά F1)")
+    print("=" * 70)
+    print(res_df.to_string(index=False))
+
+    # Αποθήκευση πίνακα αποτελεσμάτων
+    res_csv = os.path.join(config.RESULTS_DIR, "model_comparison.csv")
+    res_df.to_csv(res_csv, index=False)
+    print(f"\n[OK] Πίνακας αποτελεσμάτων: {res_csv}")
+
+    # --- Αποθήκευση καλύτερου μοντέλου + artifacts ---
+    best_name = res_df.iloc[0]["model"]
+    best_model = trained[best_name]
+    print(f"\n[*] Καλύτερο μοντέλο: {best_name}")
+
+    joblib.dump(best_model, os.path.join(config.MODELS_DIR, "best_model.pkl"))
+    joblib.dump(data["scaler"], os.path.join(config.MODELS_DIR, "scaler.pkl"))
+    joblib.dump(data["label_encoder"], os.path.join(config.MODELS_DIR, "label_encoder.pkl"))
+    with open(os.path.join(config.MODELS_DIR, "feature_columns.json"), "w") as f:
+        json.dump(data["feature_columns"], f, indent=2)
+    with open(os.path.join(config.MODELS_DIR, "meta.json"), "w") as f:
+        json.dump({"best_model": best_name, "classes": class_names}, f, indent=2)
+    print(f"[OK] Αποθηκεύτηκαν μοντέλο/scaler/encoder στο: {config.MODELS_DIR}")
+
+    # Επιστροφή για χρήση από το evaluate.py
+    return {
+        "best_name": best_name, "best_model": best_model,
+        "data": data, "results_df": res_df, "trained": trained,
+    }
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--insdn", action="store_true",
+                        help="Χρήση πραγματικού InSDN dataset αντί για το συνθετικό")
+    args = parser.parse_args()
+    main(use_insdn=args.insdn)

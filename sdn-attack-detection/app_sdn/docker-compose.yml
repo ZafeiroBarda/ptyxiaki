@@ -1,0 +1,59 @@
+# =============================================================================
+# docker-compose.yml — Orchestration του application-level SDN (Digital Twin)
+#
+# Υλοποιεί την αρχιτεκτονική microservices της διπλωματικής:
+#   - controller : Control Plane + Intelligence/Defense Plane (Flask + Isolation Forest)
+#   - dashboard  : Management Plane (Dash/Cytoscape)
+#   - switch     : Data Plane (application-level overlay, UDP)
+#
+# Εκτέλεση (από τη ρίζα του project):
+#   docker compose -f app_sdn/docker-compose.yml up --build
+#   # μετά: άνοιξε http://localhost:8050 για το dashboard
+#   # για κίνηση/επιθέσεις: docker compose exec controller python3 app_sdn/simulate.py
+# =============================================================================
+services:
+
+  controller:
+    build:
+      context: ..
+      dockerfile: app_sdn/Dockerfile
+    container_name: sdn_controller
+    command: python3 app_sdn/controller.py
+    ports:
+      - "9000:9000"          # REST API (southbound)
+    networks: [sdn_net]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:9000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: app_sdn/Dockerfile
+    container_name: sdn_dashboard
+    command: python3 app_sdn/dashboard.py
+    environment:
+      - CONTROLLER_URL=http://controller:9000
+    ports:
+      - "8050:8050"          # Web UI
+    depends_on:
+      controller:
+        condition: service_healthy
+    networks: [sdn_net]
+
+  switch:
+    build:
+      context: ..
+      dockerfile: app_sdn/Dockerfile
+    container_name: sdn_switch
+    command: python3 app_sdn/switch.py --id s1 --controller http://controller:9000 --port 8000
+    depends_on:
+      controller:
+        condition: service_healthy
+    networks: [sdn_net]
+
+networks:
+  sdn_net:
+    driver: bridge

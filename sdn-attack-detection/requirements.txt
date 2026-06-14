@@ -1,0 +1,18 @@
+# --- ML pipeline (μέθοδος Β) ---
+scikit-learn>=1.3
+pandas>=2.0
+numpy>=1.24
+matplotlib>=3.7
+seaborn>=0.12
+joblib>=1.3
+
+# --- Live SDN controller (μέθοδος Α) ---
+# Ο Ryu εγκαθίσταται ξεχωριστά γιατί απαιτεί συγκεκριμένες εκδόσεις Python.
+# Επίσημος Ryu:        pip install ryu
+# Συντηρούμενο fork:   pip install os-ken
+#   (αν χρησιμοποιήσεις os-ken, άλλαξε τα imports 'ryu.' -> 'os_ken.')
+#
+# Mininet: ΔΕΝ εγκαθίσταται με pip — εγκατάσταση σε επίπεδο συστήματος (Linux):
+#   sudo apt update && sudo apt install mininet
+# Εργαλεία επιθέσεων (μέσα στο εργαστηριακό VM):
+#   sudo apt install hping3 nmap iperf

@@ -1,0 +1,10 @@
+{
+  "best_model": "Random Forest",
+  "classes": [
+    "BFA",
+    "DDoS",
+    "DoS",
+    "Normal",
+    "Probe"
+  ]
+}
