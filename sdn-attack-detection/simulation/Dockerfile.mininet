@@ -1,0 +1,50 @@
+# Dockerfile.mininet — Mininet + OVS + Ryu container
+#
+# Τρέχει privileged (απαιτείται για Mininet network namespaces + OVS).
+# Περιέχει:
+#   - Mininet (apt)
+#   - Open vSwitch (apt)
+#   - os-ken (pip) — maintained fork του Ryu, Python 3.10+ compatible
+#   - hping3, iperf3 — για traffic generation / attack simulation
+#
+# Εκτέλεση μέσω docker-compose (βλ. app_sdn/docker-compose.yml):
+#   docker compose -f app_sdn/docker-compose.yml up --build
+
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    mininet \
+    openvswitch-switch \
+    openvswitch-testcontroller \
+    python3 python3-pip \
+    hping3 iperf3 nmap \
+    net-tools iproute2 iputils-ping \
+    tcpdump curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# os-ken = maintained Ryu fork (Python 3.10+ compatible)
+# eventlet pin: os-ken requires eventlet ≥ 0.33
+RUN pip3 install --no-cache-dir \
+    os-ken \
+    "eventlet>=0.33" \
+    requests \
+    flask
+
+WORKDIR /app
+
+# κώδικας που χρειάζεται το Mininet container
+COPY simulation  /app/simulation
+COPY controller  /app/controller
+COPY models      /app/models
+COPY ml_pipeline /app/ml_pipeline
+
+ENV CONTROLLER_URL=http://controller:9000
+ENV RYU_PORT=6653
+ENV NORMAL_PHASE=30
+ENV ATTACK_PHASE=30
+
+# Εκκίνηση: OVS → mininet_live.py (που ξεκινά και τον Ryu bridge εσωτερικά)
+CMD ["bash", "-c", \
+     "service openvswitch-switch start && sleep 2 && \
+      python3 simulation/mininet_live.py"]

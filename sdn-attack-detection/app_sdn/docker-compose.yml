@@ -54,6 +54,32 @@ services:
         condition: service_healthy
     networks: [sdn_net]
 
+  # ---------------------------------------------------------------
+  # Mininet container: πραγματική τοπολογία OVS + Ryu bridge
+  #   - τρέχει ΜΕΤΑ από τον controller (depends_on + healthcheck)
+  #   - ο Ryu bridge controller μιλάει με τον Flask controller μέσω sdn_net
+  #   - απαιτεί privileged mode για Mininet network namespaces + OVS
+  # ---------------------------------------------------------------
+  mininet:
+    build:
+      context: ..
+      dockerfile: simulation/Dockerfile.mininet
+    container_name: sdn_mininet
+    privileged: true          # απαιτείται για Mininet + OVS kernel namespaces
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    environment:
+      - CONTROLLER_URL=http://controller:9000
+      - RYU_PORT=6653
+      - NORMAL_PHASE=30
+      - ATTACK_PHASE=30
+    depends_on:
+      controller:
+        condition: service_healthy
+    networks: [sdn_net]
+    restart: "no"             # τρέχει μία φορά (demo scenario)
+
 networks:
   sdn_net:
     driver: bridge
