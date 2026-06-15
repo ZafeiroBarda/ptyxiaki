@@ -1,11 +1,12 @@
-# Εκτεταμένη Ανάλυση: Ερμηνευσιμότητα, Καθυστέρηση & Αποτελεσματικότητα Αντιμετώπισης
+# Εκτεταμένη Ανάλυση: Ερμηνευσιμότητα, Καθυστέρηση, Αντιμετώπιση & Control Plane
 
-Το κεφάλαιο αυτό παρουσιάζει τρεις συμπληρωματικές αναλύσεις που ενισχύουν
+Το κεφάλαιο αυτό παρουσιάζει τέσσερις συμπληρωματικές αναλύσεις που ενισχύουν
 την ακαδημαϊκή αξία της εργασίας από πλευράς **κυβερνοασφάλειας**:
 
 1. **Ανάλυση Ερμηνευσιμότητας (SHAP)** — Γιατί το μοντέλο ανιχνεύει αυτό που ανιχνεύει;
 2. **Ανάλυση Καθυστέρησης Ανίχνευσης** — Πόσο γρήγορα αντιδρά το σύστημα;
 3. **Ανάλυση Αποτελεσματικότητας Αντιμετώπισης** — Τι γίνεται μετά την ανίχνευση;
+4. **Επίθεση Κορεσμού Control Plane** — Η πιο SDN-specific επίθεση και η αντιμετώπισή της.
 
 ---
 
@@ -276,6 +277,141 @@ python3 ml_pipeline/mitigation_analysis.py
 
 ---
 
+---
+
+## 5. Επίθεση Κορεσμού Control Plane (Table-Miss Flooding)
+
+### 5.1 Θεωρητικό Υπόβαθρο — Η πιο SDN-specific επίθεση
+
+Η **επίθεση κορεσμού control plane** (_control plane saturation_ ή
+_table-miss flooding_) εκμεταλλεύεται έναν θεμελιώδη περιορισμό της
+αρχιτεκτονικής SDN/OpenFlow:
+
+```
+Κανονική ροή πακέτου σε SDN:
+  Πακέτο → Switch → lookup flow table → HIT  → προώθηση (γρήγορο)
+                                      → MISS → PACKET_IN → Controller
+                                                          → Flow-Mod → Switch
+                                                          → προώθηση
+```
+
+Κάθε **table-miss** δημιουργεί ένα `PACKET_IN` μήνυμα που αποστέλλεται
+στον controller μέσω του **OpenFlow control channel**. Ο controller έχει
+πεπερασμένη χωρητικότητα επεξεργασίας (συνήθως 100–1000 PACKET_IN/s
+για τυπικούς software controllers όπως Ryu/POX/ONOS).
+
+**Ο επιτιθέμενος εκμεταλλεύεται αυτό ως εξής:**
+- Στέλνει πακέτα με **τυχαίες source IPs** (ή MACs/ports)
+- Κάθε πακέτο είναι εγγυημένα table-miss (δεν υπάρχει κανόνας για την τυχαία IP)
+- Δημιουργεί **storm PACKET_IN** (εκατοντάδες/δευτερόλεπτο)
+- Ο controller **κορέζεται** → δεν μπορεί να εξυπηρετήσει νόμιμους hosts
+- **Αποτέλεσμα: de facto DoS στο control plane** — η νόμιμη κίνηση δεν μπορεί
+  να ρυθμιστεί, ο controller "τυφλώνεται"
+
+**Αυτή η επίθεση ΔΕΝ υπάρχει σε παραδοσιακά δίκτυα** — είναι αποκλειστικά
+SDN artifact λόγω της κεντρικοποιημένης λογικής forwarding.
+
+### 5.2 Μοντέλο Προσομοίωσης
+
+Το `simulation/control_plane_saturation.py` μοντελοποιεί:
+
+| Στοιχείο | Τιμή | Πραγματιστική αντιστοιχία |
+|----------|------|---------------------------|
+| Controller capacity | 100 PACKET_IN/s | Τυπικός Ryu controller |
+| PACKET_IN queue | 250 θέσεις | RAM buffer για εκκρεμείς αιτήσεις |
+| Flow table | 100 entries | Τυπικός OpenFlow switch (TCAM) |
+| Flow TTL | 30s | Χρόνος λήξης κανόνα |
+| Νόμιμη κίνηση | ~10 PACKET_IN/s | 5 hosts × 2 νέες ροές/s |
+| Επίθεση | 400 PACKET_IN/s | Table-miss flood με random IPs |
+| Pool τυχαίων IPs | 50.000 | Εγγυημένα νέοι κανόνες κάθε φορά |
+
+**Φάσεις (80 δευτερόλεπτα):**
+
+| Φάση | Χρόνος | Περιγραφή |
+|------|--------|-----------|
+| 1 — Κανονική λειτουργία | t=0–19s | Baseline, queue κενή, RTT ~0ms |
+| 2 — Table-miss flooding | t=20–27s | 400 PACKET_IN/s, queue γεμίζει, RTT αυξάνεται |
+| 3 — Ανίχνευση | t=28–30s | Shannon entropy >5 bits → alert |
+| 4 — Mitigation ενεργό | t=31–79s | Rate limit 80 PACKET_IN/s, ανάκαμψη |
+
+### 5.3 Μέθοδος Ανίχνευσης: Shannon Entropy
+
+Η ανίχνευση βασίζεται στον υπολογισμό της **Εντροπίας Shannon** των
+source IPs στο PACKET_IN stream:
+
+```
+H(X) = -Σ p(xi) × log₂(p(xi))   [bits]
+```
+
+| Κατάσταση | Πηγές IP | Εντροπία Shannon |
+|-----------|---------|------------------|
+| Φυσιολογική κίνηση | 5 γνωστοί hosts | ~1–2.3 bits |
+| Table-miss flooding | 50.000 τυχαίες IPs | **~11–12 bits** |
+
+Ο αλγόριθμος ανίχνευσης (sliding window 8s):
+1. Μετράει PACKET_IN events ανά source IP
+2. Υπολογίζει H(X) για το τρέχον παράθυρο
+3. Αν `H > 5.0 bits` ή `rate > 150 PACKET_IN/s` → alert
+
+**Πλεονέκτημα Shannon entropy έναντι threshold-only:**
+- Το threshold ενεργοποιείται ΜΟΝΟ αν ο controller κοντεύει να κορεστεί
+- Η entropy ανιχνεύει **ακόμα και χαμηλής έντασης** επιθέσεις που στέλνουν
+  π.χ. 50 PACKET_IN/s (κάτω από το threshold rate) αλλά με πλήρως τυχαίες IPs
+
+### 5.4 Μέθοδος Αντιμετώπισης: Rate Limiting στο Switch
+
+Αντί να μπλοκάρει μία συγκεκριμένη IP (αδύνατο με 50.000 τυχαίες IPs),
+το σύστημα εγκαθιστά ένα **καθολικό rate-limiting rule** στο switch:
+
+```
+OpenFlow rule: max 80 PACKET_IN/s προς controller (global)
+Priority: υψηλή (υπερισχύει κανόνων lower priority)
+```
+
+Αποτέλεσμα: ο επιτιθέμενος μπορεί να παράγει 400 PACKET_IN/s αλλά
+μόνο 80 φτάνουν στον controller — ο controller αποσυμφορείται.
+
+### 5.5 Αριθμητικά Αποτελέσματα
+
+| Μετρική | Φάση 1 (Normal) | Φάση 2 (Attack) | Φάση 4 (Mitigated) |
+|---------|----------------|-----------------|---------------------|
+| PACKET_IN rate | ~1/s | **400/s** | ~81/s |
+| Queue depth | 0/250 | **150/250 (60%)** | 10/250 |
+| Response Time (RTT) | 0 ms | **1.500 ms** | 100 ms |
+| Shannon Entropy | 1.16 bits | **11.58 bits** | ~8 bits |
+| Legit request drops | 0 | 0* | 0 |
+
+*Σε αυτό το σενάριο η queue δεν πληρώθηκε πλήρως (60%). Σε πιο
+ισχυρές επιθέσεις (>1000 PACKET_IN/s) οι νόμιμες αιτήσεις χάνονται.
+
+**Χρόνος ανίχνευσης: t=28s** (8s μετά έναρξη επίθεσης, = 1 sliding window)
+**Χρόνος mitigation: t=31s** (3s deployment delay μετά ανίχνευση)
+
+### 5.6 Παραγόμενα Αρχεία
+
+| Αρχείο | Περιγραφή |
+|--------|-----------|
+| `results/ctrl_plane_overview.png` | 4-panel: PACKET_IN rate, queue, RTT, flow table |
+| `results/ctrl_plane_detection.png` | Entropy, detection event, legit drops |
+| `results/ctrl_plane_stats.csv` | Αριθμητικά αποτελέσματα ανά δευτερόλεπτο |
+
+### 5.7 Σύγκριση με Παραδοσιακά Δίκτυα
+
+| Πτυχή | Παραδοσιακό δίκτυο | SDN (χωρίς προστασία) | SDN (με rate limiting) |
+|-------|-------------------|-----------------------|------------------------|
+| Control plane target | Δεν υπάρχει | **Κεντρικός controller** | Προστατευμένος |
+| Table-miss flooding | Αδύνατο | **Καταστροφικό** | Ελεγχόμενο |
+| Αντίδραση | Στατικά ACLs | Χρειάζεται ML | Αυτόματη |
+| Single point of failure | Εκτεταμένο | **Ο controller** | Μετριασμένο |
+
+### 5.8 Εκτέλεση
+
+```bash
+python3 simulation/control_plane_saturation.py
+```
+
+---
+
 ## Βιβλιογραφία
 
 - Lundberg, S. M., & Lee, S.-I. (2017). *A unified approach to interpreting
@@ -287,3 +423,7 @@ python3 ml_pipeline/mitigation_analysis.py
   Surveys.
 - Braga, R., Mota, E., & Passito, A. (2010). *Lightweight DDoS flooding attack
   detection using NOX/OpenFlow*. IEEE LCN.
+- Shin, S., & Gu, G. (2013). *Attacking software-defined networks: A first
+  feasibility study*. ACM HotSDN 2013.
+- Dao, N.-N. et al. (2015). *Securing heterogeneous IoT with intelligent
+  DDoS attack behavior learning*. IEEE Access.
