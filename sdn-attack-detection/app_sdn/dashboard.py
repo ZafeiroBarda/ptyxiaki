@@ -186,8 +186,9 @@ app.layout = html.Div(
 )
 def update(_, history):
     try:
-        topo  = requests.get(f"{CONTROLLER_URL}/topology", timeout=2).json()
-        stats = requests.get(f"{CONTROLLER_URL}/stats",    timeout=2).json()
+        topo    = requests.get(f"{CONTROLLER_URL}/topology", timeout=2).json()
+        stats   = requests.get(f"{CONTROLLER_URL}/stats",    timeout=2).json()
+        metrics = requests.get(f"{CONTROLLER_URL}/metrics",  timeout=2).json()
     except Exception:
         empty_fig = go.Figure().update_layout(
             plot_bgcolor="white", paper_bgcolor="white",
@@ -197,26 +198,24 @@ def update(_, history):
         )
         return history, [], empty_fig, [], None, ""
 
-    # ── Update rolling history store ─────────────────────────────────────────
-    now = time.time()
-    if history["t0"] is None:
-        history["t0"] = now
-    history["t"].append(round(now - history["t0"], 1))
+    # ── Rebuild history entirely from server-side metrics (survives refresh) ──
+    # Group entries by timestamp: {t: {src: packets}}
+    by_t: dict = {}
+    for entry in metrics[-MAX_PTS:]:
+        t = entry["t"]
+        by_t.setdefault(t, {})[entry["src"]] = entry["packets"]
+
+    all_t     = sorted(by_t.keys())
+    known_ips = {src for d in by_t.values() for src in d}
+    rates: dict = {
+        ip: [by_t[t].get(ip, 0) for t in all_t]
+        for ip in known_ips
+    }
+    history = {"t": all_t, "rates": rates,
+               "blocked": [], "t0": all_t[0] if all_t else None}
 
     blocked_ips = {n["ip"] for n in topo["nodes"] if n.get("status") == "blocked"}
     history["blocked"] = list(blocked_ips)
-
-    # Edge packets = latest telemetry window count, keyed by src IP
-    edge_pkts = {e["src"]: e.get("packets", 0) for e in topo.get("edges", [])}
-    known = set(history["rates"].keys()) | set(edge_pkts.keys())
-    for ip in known:
-        history["rates"].setdefault(ip, []).append(edge_pkts.get(ip, 0))
-
-    # Trim to MAX_PTS
-    if len(history["t"]) > MAX_PTS:
-        history["t"] = history["t"][-MAX_PTS:]
-        for ip in history["rates"]:
-            history["rates"][ip] = history["rates"][ip][-MAX_PTS:]
 
     # ── Topology elements ────────────────────────────────────────────────────
     elements = [

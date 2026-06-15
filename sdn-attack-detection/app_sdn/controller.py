@@ -27,6 +27,8 @@ import os
 import sys
 import time
 import threading
+from collections import deque
+
 import numpy as np
 from flask import Flask, request, jsonify
 
@@ -146,6 +148,12 @@ flow_table = FlowTable()
 defense = DefenseEngine()
 _log = []
 
+# Rolling metrics history for the dashboard chart.
+# Stores {t, src, packets, bytes} entries — survives browser page refreshes.
+_metrics: deque = deque(maxlen=180)   # ~15 min at 5s telemetry interval
+_metrics_lock = threading.Lock()
+_metrics_t0: float = None
+
 
 def log_event(msg):
     entry = {"t": round(time.time(), 2), "msg": msg}
@@ -194,6 +202,19 @@ def telemetry():
     total_bytes = sum(f[1] for f in flows)
     gnv.update_flow(src, dst, total_pkts, total_bytes)
 
+    # Record in server-side metrics history so the dashboard chart survives refresh
+    global _metrics_t0
+    now = time.time()
+    with _metrics_lock:
+        if _metrics_t0 is None:
+            _metrics_t0 = now
+        _metrics.append({
+            "t":       round(now - _metrics_t0, 1),
+            "src":     src,
+            "packets": total_pkts,
+            "bytes":   total_bytes,
+        })
+
     verdict, feats = defense.analyze(flows)
     if verdict == "Attack" and flow_table.action_for(src) != "DROP":
         flow_table.install(src, "DROP", priority=100, ttl=60)
@@ -203,6 +224,13 @@ def telemetry():
 
     action = flow_table.action_for(src)
     return jsonify({"src": src, "action": action, "verdict": verdict})
+
+
+@app.route("/metrics", methods=["GET"])
+def get_metrics():
+    """Server-side packet rate history — used by dashboard to survive page refreshes."""
+    with _metrics_lock:
+        return jsonify(list(_metrics))
 
 
 @app.route("/flow_table", methods=["GET"])
@@ -229,9 +257,13 @@ def get_stats():
 
 @app.route("/reset", methods=["POST"])
 def reset():
+    global _metrics_t0
     gnv.nodes.clear(); gnv.flows.clear()
     flow_table.rules.clear(); _log.clear()
     defense.detections = 0
+    with _metrics_lock:
+        _metrics.clear()
+        _metrics_t0 = None
     return jsonify({"status": "reset"})
 
 
