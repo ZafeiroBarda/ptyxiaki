@@ -23,38 +23,9 @@ RUN apt-get update && apt-get install -y \
     tcpdump curl \
     && rm -rf /var/lib/apt/lists/*
 
-# ryu 4.34 install + patches για Python 3.10 compatibility
-RUN pip3 install --no-cache-dir ryu requests flask && \
-    python3 -c "
-import glob
-
-# Patch 1: eventlet >= 0.36 αφαίρεσε ALREADY_HANDLED από wsgi
-wsgi = '/usr/local/lib/python3.10/dist-packages/ryu/app/wsgi.py'
-t = open(wsgi).read()
-t = t.replace(
-    'from eventlet.wsgi import ALREADY_HANDLED',
-    'try:\n    from eventlet.wsgi import ALREADY_HANDLED\nexcept ImportError:\n    ALREADY_HANDLED = b\"\"'
-)
-open(wsgi, 'w').write(t)
-
-# Patch 2: Python 3.10 αφαίρεσε collections.X (χρησιμοποίησε collections.abc.X)
-abc_names = ['Callable','Mapping','MutableMapping','MutableSequence',
-             'Sequence','Iterable','Iterator','MutableSet']
-patched = 0
-for f in glob.glob('/usr/local/lib/python3.10/dist-packages/ryu/**/*.py', recursive=True):
-    try:
-        t = open(f).read()
-        nt = t
-        for name in abc_names:
-            nt = nt.replace('collections.' + name, 'collections.abc.' + name)
-        nt = nt.replace('collections.abc.abc.', 'collections.abc.')
-        if nt != t:
-            open(f, 'w').write(nt)
-            patched += 1
-    except Exception:
-        pass
-print(f'ryu patched: 1 wsgi + {patched} collections files')
-"
+# ryu 4.34 + patch script για Python 3.10 / eventlet >= 0.36 compatibility
+COPY simulation/patch_ryu.py /tmp/patch_ryu.py
+RUN pip3 install --no-cache-dir ryu requests flask && python3 /tmp/patch_ryu.py
 
 WORKDIR /app
 
