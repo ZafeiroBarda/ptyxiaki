@@ -168,7 +168,7 @@ app.layout = html.Div(
         # ── State ────────────────────────────────────────────────────────────
         dcc.Store(id="history",
                   data={"t": [], "rates": {}, "blocked": [], "t0": None}),
-        dcc.Interval(id="refresh", interval=1500, n_intervals=0),
+        dcc.Interval(id="refresh", interval=1000, n_intervals=0),
     ],
 )
 
@@ -258,7 +258,7 @@ def update(_, history):
             x=t_axis,
             y=[max(v, 1) for v in padded],  # log scale requires y > 0
             mode="lines", name=label,
-            line={"color": color, "width": width},
+            line={"color": color, "width": width, "shape": "spline", "smoothing": 0.8},
         ))
 
     fig = go.Figure(data=traces)
@@ -284,6 +284,9 @@ def update(_, history):
         plot_bgcolor="white", paper_bgcolor="white",
         margin={"l": 60, "r": 10, "t": 10, "b": 90},
         hovermode="x unified",
+        # uirevision keeps zoom/pan state between updates — critical for smoothness
+        uirevision="demo",
+        transition={"duration": 400, "easing": "cubic-in-out"},
     )
 
     # ── Stats panel ──────────────────────────────────────────────────────────

@@ -27,7 +27,7 @@ import requests
 CONTROLLER_URL = os.environ.get("CONTROLLER_URL", "http://controller:9000")
 NORMAL_PHASE   = int(os.environ.get("NORMAL_PHASE", "30"))
 ATTACK_PHASE   = int(os.environ.get("ATTACK_PHASE", "30"))
-TELEM_INTERVAL = 5  # seconds between telemetry snapshots
+TELEM_INTERVAL = 2  # seconds between telemetry snapshots (lower = smoother chart)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
