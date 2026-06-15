@@ -1,0 +1,13 @@
+feature,evasion_rate_pct,delta_vs_baseline
+Idle_Mean,0.016,0.016
+Pkt_Len_Std,0.008,0.008
+Flow_IAT_Std,0.0,0.0
+Flow_Pkts_s,0.0,0.0
+Pkt_Len_Mean,0.0,0.0
+Fwd_IAT_Mean,0.0,0.0
+Pkt_Size_Avg,0.0,0.0
+Bwd_IAT_Mean,0.0,0.0
+Flow_IAT_Mean,0.0,0.0
+Init_Fwd_Win_Byts,0.0,0.0
+Active_Mean,0.0,0.0
+TotLen_Bwd_Pkts,0.0,0.0
