@@ -71,9 +71,9 @@ services:
       - SYS_ADMIN
     environment:
       - CONTROLLER_URL=http://controller:9000
-      - RYU_PORT=6653
       - NORMAL_PHASE=30
       - ATTACK_PHASE=30
+      - PYTHONUNBUFFERED=1
     depends_on:
       controller:
         condition: service_healthy
