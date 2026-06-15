@@ -1,0 +1,8 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+_gittest*.txt
+delete_test_inside.txt
+{data,ml_pipeline,simulation,controller,results,docs}

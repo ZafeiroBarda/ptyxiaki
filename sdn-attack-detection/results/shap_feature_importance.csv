@@ -1,0 +1,25 @@
+feature,feature_el,mean_abs_shap
+Flow_IAT_Std,Τυπ. Απόκλιση IAT,0.1915281656076634
+Flow_Pkts_s,Πακέτα/s,0.1570389147891868
+Fwd_IAT_Mean,IAT Εμπρός,0.14932601698500028
+Pkt_Len_Mean,Μέσο Μήκος Πακέτου,0.14630765172041973
+Idle_Mean,Μέσος Χρόνος Αδράνειας,0.14383368983125994
+Bwd_IAT_Mean,IAT Πίσω,0.13150413692261734
+Pkt_Size_Avg,Μέσο Μέγεθος Πακέτου,0.11542363243816281
+Flow_IAT_Mean,Μέσο IAT,0.11222948044963152
+Pkt_Len_Std,Τυπ. Απόκλιση Μήκους,0.09545276601895175
+Init_Fwd_Win_Byts,Παράθυρο TCP Εμπρός,0.08174852126550625
+Active_Mean,Μέσος Χρόνος Ενεργός,0.08114451676938658
+TotLen_Bwd_Pkts,Bytes Πίσω,0.06251080703517857
+SYN_Flag_Cnt,SYN Flags,0.06088142070126975
+ACK_Flag_Cnt,ACK Flags,0.057522702098012746
+RST_Flag_Cnt,RST Flags,0.04578722767584837
+TotLen_Fwd_Pkts,Bytes Εμπρός,0.0450975649691804
+Fwd_Pkt_Len_Mean,Μέσο Μήκος Εμπρός,0.034526647305800115
+Down_Up_Ratio,Λόγος Down/Up,0.03019335968866075
+Tot_Bwd_Pkts,Πακέτα Πίσω,0.02925615616375445
+Bwd_Pkt_Len_Mean,Μέσο Μήκος Πίσω,0.02912222073065902
+FIN_Flag_Cnt,FIN Flags,0.027811150934131244
+Tot_Fwd_Pkts,Πακέτα Εμπρός,0.02495818725231946
+Flow_Duration,Διάρκεια Ροής,0.01676282496731494
+Flow_Byts_s,Bytes/s,0.0007429057158246451

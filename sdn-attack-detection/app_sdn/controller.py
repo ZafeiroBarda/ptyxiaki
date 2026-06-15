@@ -40,7 +40,9 @@ try:
     # live Isolation Forest: εκπαιδευμένο στα 8 aggregate features της τηλεμετρίας
     _ISO = joblib.load(os.path.join(config.MODELS_DIR, "isolation_forest_live.pkl"))
     _ISO_SCALER = joblib.load(os.path.join(config.MODELS_DIR, "isolation_forest_live_scaler.pkl"))
-except Exception:
+except Exception as e:
+    print(f"[CONTROLLER] Προειδοποίηση: αποτυχία φόρτωσης Isolation Forest live model ({e}); "
+          f"θα χρησιμοποιηθεί το εφεδρικό detection_engine.")
     _ISO, _ISO_SCALER = None, None
 
 
@@ -153,7 +155,13 @@ def log_event(msg):
 
 @app.route("/register", methods=["POST"])
 def register():
-    data = request.get_json(force=True)
+    data = request.get_json(force=True, silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "invalid or missing JSON body"}), 400
+    missing = [f for f in ("node_id", "ip") if f not in data]
+    if missing:
+        return jsonify({"error": f"missing required field(s): {', '.join(missing)}"}), 400
+
     gnv.add_node(data["node_id"], data.get("type", "host"), data["ip"])
     log_event(f"Εγγραφή κόμβου {data['node_id']} ({data['ip']})")
     return jsonify({"status": "registered", "node_id": data["node_id"]})
@@ -167,10 +175,20 @@ def telemetry():
         "flows": [[packets, bytes, duration], ...] }
     Ο controller τα αναλύει (Defense Engine) και επιστρέφει την ενέργεια.
     """
-    data = request.get_json(force=True)
+    data = request.get_json(force=True, silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "invalid or missing JSON body"}), 400
+    missing = [f for f in ("src", "flows") if f not in data]
+    if missing:
+        return jsonify({"error": f"missing required field(s): {', '.join(missing)}"}), 400
+
     src = data["src"]
     dst = data.get("dst", "?")
     flows = data["flows"]
+    if not isinstance(flows, list) or not all(
+        isinstance(f, (list, tuple)) and len(f) >= 2 for f in flows
+    ):
+        return jsonify({"error": "'flows' must be a list of [packets, bytes, ...] entries"}), 400
 
     total_pkts = sum(f[0] for f in flows)
     total_bytes = sum(f[1] for f in flows)
