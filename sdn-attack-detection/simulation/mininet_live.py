@@ -21,6 +21,7 @@ import sys
 import time
 import subprocess
 import requests
+import shutil
 
 CONTROLLER_URL = os.environ.get("CONTROLLER_URL", "http://controller:9000")
 RYU_PORT       = int(os.environ.get("RYU_PORT", "6653"))
@@ -56,23 +57,43 @@ def start_ryu():
     env = os.environ.copy()
     env["CONTROLLER_URL"] = CONTROLLER_URL
 
-    for cmd in ["os-ken-manager", "ryu-manager"]:
+    # Δοκιμάζουμε 3 τρόπους — python3 -m πρώτα (πάντα δουλεύει αν os-ken εγκατεστάθηκε)
+    attempts = [
+        [sys.executable, "-m", "os_ken.cmd.manager",
+         "--ofp-tcp-listen-port", str(RYU_PORT), bridge_script],
+        ["os-ken-manager",
+         "--ofp-tcp-listen-port", str(RYU_PORT), bridge_script],
+        ["ryu-manager",
+         "--ofp-tcp-listen-port", str(RYU_PORT), bridge_script],
+    ]
+
+    for cmd_args in attempts:
         try:
             proc = subprocess.Popen(
-                [cmd, "--ofp-tcp-listen-port", str(RYU_PORT), bridge_script],
-                env=env,
+                cmd_args, env=env,
                 stdout=open("/tmp/ryu_bridge.log", "w"),
                 stderr=subprocess.STDOUT,
             )
             time.sleep(4)
             if proc.poll() is None:
-                print(f"[LIVE] Ryu εκκινήθηκε (PID {proc.pid}, cmd={cmd})")
+                print(f"[LIVE] Ryu εκκινήθηκε (PID {proc.pid}, {cmd_args[0]})")
                 return proc
-            else:
-                print(f"[LIVE] {cmd} τερματίστηκε αμέσως, δοκιμάζω επόμενο...")
+            # Crashed — εμφάνισε τα τελευταία logs για debug
+            try:
+                with open("/tmp/ryu_bridge.log") as f:
+                    tail = f.readlines()[-12:]
+                print(f"[LIVE] {cmd_args[0]} crashed — τελευταίες γραμμές log:")
+                for line in tail:
+                    print(f"  {line.rstrip()}")
+            except Exception:
+                pass
         except FileNotFoundError:
+            print(f"[LIVE] {cmd_args[0]} δεν βρέθηκε, δοκιμάζω επόμενο...")
             continue
-    raise RuntimeError("Δεν βρέθηκε os-ken-manager ή ryu-manager στο PATH")
+
+    raise RuntimeError(
+        "Αδυναμία εκκίνησης Ryu bridge — έλεγξε /tmp/ryu_bridge.log"
+    )
 
 
 def register_host(name, ip):
@@ -120,7 +141,8 @@ def main():
     net.addController("c0", controller=RemoteController,
                       ip="127.0.0.1", port=RYU_PORT)
 
-    s1 = net.addSwitch("s1", protocols="OpenFlow13")
+    # datapath='user' = userspace OVS (δουλεύει σε WSL2 χωρίς kernel module)
+    s1 = net.addSwitch("s1", protocols="OpenFlow13", datapath="user")
     hosts = {}
     for i in range(1, 7):
         ip = f"10.0.0.{i}/24"
