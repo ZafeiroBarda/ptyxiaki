@@ -23,11 +23,10 @@ RUN apt-get update && apt-get install -y \
     tcpdump curl \
     && rm -rf /var/lib/apt/lists/*
 
-# os-ken = maintained Ryu fork (Python 3.10+ compatible)
-# eventlet pin: os-ken requires eventlet ≥ 0.33
+# ryu 4.34 + tinyrpc (δουλεύει με Python 3.10 με deprecation warnings μόνο)
+# os-ken παραμένει για backwards-compat imports
 RUN pip3 install --no-cache-dir \
-    os-ken \
-    "eventlet>=0.33" \
+    ryu \
     requests \
     flask
 

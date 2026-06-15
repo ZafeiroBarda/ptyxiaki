@@ -57,13 +57,13 @@ def start_ryu():
     env = os.environ.copy()
     env["CONTROLLER_URL"] = CONTROLLER_URL
 
-    # Δοκιμάζουμε 3 τρόπους — python3 -m πρώτα (πάντα δουλεύει αν os-ken εγκατεστάθηκε)
+    # ryu-manager πρώτα (εγκατεστημένο στο Dockerfile), fallbacks για άλλα envs
     attempts = [
-        [sys.executable, "-m", "os_ken.cmd.manager",
+        ["ryu-manager",
          "--ofp-tcp-listen-port", str(RYU_PORT), bridge_script],
         ["os-ken-manager",
          "--ofp-tcp-listen-port", str(RYU_PORT), bridge_script],
-        ["ryu-manager",
+        [sys.executable, "-m", "os_ken.cmd.manager",
          "--ofp-tcp-listen-port", str(RYU_PORT), bridge_script],
     ]
 
