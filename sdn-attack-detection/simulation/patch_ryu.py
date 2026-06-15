@@ -13,20 +13,23 @@ Patch 2: Python 3.10 αφαίρεσε collections.Callable/Mapping/κτλ
 import glob
 
 # ── Patch 1: wsgi.py ALREADY_HANDLED ─────────────────────────────────────────
+import re
+
 WSGI = '/usr/local/lib/python3.10/dist-packages/ryu/app/wsgi.py'
 try:
     t = open(WSGI).read()
-    patched_wsgi = 'from eventlet.wsgi import ALREADY_HANDLED' not in t
-    if not patched_wsgi:
-        t = t.replace(
-            'from eventlet.wsgi import ALREADY_HANDLED',
-            'try:\n    from eventlet.wsgi import ALREADY_HANDLED\n'
-            'except ImportError:\n    ALREADY_HANDLED = b""'
+    if 'ALREADY_HANDLED' in t and 'except ImportError' not in t:
+        # Capture leading whitespace so indentation is preserved inside class body
+        t = re.sub(
+            r'( *)from eventlet\.wsgi import ALREADY_HANDLED',
+            r'\1try:\n\1    from eventlet.wsgi import ALREADY_HANDLED\n'
+            r'\1except ImportError:\n\1    ALREADY_HANDLED = b""',
+            t,
         )
         open(WSGI, 'w').write(t)
         print(f'[patch] {WSGI} — ALREADY_HANDLED fixed')
     else:
-        print(f'[patch] {WSGI} — already patched')
+        print(f'[patch] {WSGI} — already patched or not needed')
 except Exception as e:
     print(f'[patch] wsgi error: {e}')
 
