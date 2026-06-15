@@ -24,10 +24,12 @@ import time
 
 import requests
 
-CONTROLLER_URL = os.environ.get("CONTROLLER_URL", "http://controller:9000")
-NORMAL_PHASE   = int(os.environ.get("NORMAL_PHASE", "30"))
-ATTACK_PHASE   = int(os.environ.get("ATTACK_PHASE", "30"))
-TELEM_INTERVAL = 2  # seconds between telemetry snapshots (lower = smoother chart)
+CONTROLLER_URL  = os.environ.get("CONTROLLER_URL", "http://controller:9000")
+NORMAL_PHASE    = int(os.environ.get("NORMAL_PHASE",    "30"))
+ATTACK_PHASE    = int(os.environ.get("ATTACK_PHASE",    "30"))
+RECOVERY_PHASE  = int(os.environ.get("RECOVERY_PHASE",  "20"))  # seconds between cycles
+LOOP_CYCLES     = int(os.environ.get("LOOP_CYCLES",     "0"))   # 0 = infinite
+TELEM_INTERVAL  = 2  # seconds between telemetry snapshots (lower = smoother chart)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -130,16 +132,14 @@ def install_drop_flow(src_ip, bridge="s1"):
 #  Background telemetry thread
 # ──────────────────────────────────────────────────────────────────────────────
 
-def telemetry_loop(port_to_ip, victim_ip, stop_event, interval=TELEM_INTERVAL):
+def telemetry_loop(port_to_ip, victim_ip, stop_event, drop_state,
+                   interval=TELEM_INTERVAL):
     """
-    Every <interval> seconds:
-      1. Read per-port rx stats from OVS (or /sys/class/net as fallback)
-      2. Compute delta packets/bytes since last reading
-      3. POST to Flask /telemetry for each active source
-      4. If verdict == 'Attack', install DROP flow in OVS
+    Background thread — runs across all cycles until stop_event is set.
+    drop_state is a shared mutable dict {"installed": set()} so the main
+    thread can clear it between cycles without restarting the thread.
     """
     prev = {p: {"packets": 0, "bytes": 0} for p in port_to_ip}
-    drop_installed = set()
 
     while not stop_event.is_set():
         stop_event.wait(timeout=interval)
@@ -147,8 +147,6 @@ def telemetry_loop(port_to_ip, victim_ip, stop_event, interval=TELEM_INTERVAL):
             break
 
         curr = get_ovs_port_stats()
-
-        # Fall back to /sys/class/net if ovs-ofctl returned nothing
         if not curr:
             for port in port_to_ip:
                 p, b = read_iface_rx(f"s1-eth{port}")
@@ -157,21 +155,16 @@ def telemetry_loop(port_to_ip, victim_ip, stop_event, interval=TELEM_INTERVAL):
         for port, src_ip in port_to_ip.items():
             if port not in curr:
                 continue
-            # Don't report the victim's own port — it generates RST/ICMP
-            # responses to the flood which would cause a false-positive block
-            if src_ip == victim_ip:
+            if src_ip == victim_ip:       # skip victim's response traffic
                 prev[port] = curr[port]
                 continue
             dpkts  = max(0, curr[port]["packets"] - prev[port]["packets"])
             dbytes = max(0, curr[port]["bytes"]   - prev[port]["bytes"])
             prev[port] = curr[port]
 
-            # Skip micro-flows (< 4 pkts) to avoid false positives from
-            # timing gaps where a ping cycle doesn't complete in the window
-            if dpkts < 4:
+            if dpkts < 4:                 # skip micro-flows
                 continue
 
-            # POST telemetry to Flask
             try:
                 resp = requests.post(
                     f"{CONTROLLER_URL}/telemetry",
@@ -189,8 +182,8 @@ def telemetry_loop(port_to_ip, victim_ip, stop_event, interval=TELEM_INTERVAL):
             print(f"[TELEM] {src_ip:12s}  pkts={dpkts:6d}  bytes={dbytes:8d}"
                   f"  verdict={verdict}  action={action}", flush=True)
 
-            if verdict == "Attack" and src_ip not in drop_installed:
-                drop_installed.add(src_ip)
+            if verdict == "Attack" and src_ip not in drop_state["installed"]:
+                drop_state["installed"].add(src_ip)
                 install_drop_flow(src_ip)
 
 
@@ -243,99 +236,116 @@ def main():
         register_host(name, h.IP())
     print("[LIVE] Hosts registered.\n", flush=True)
 
-    # ── 4. Start telemetry thread ───────────────────────────────────────────
+    # ── 4. Start telemetry thread (runs across all cycles) ──────────────────
+    drop_state = {"installed": set()}
     stop_event = threading.Event()
     telem = threading.Thread(
         target=telemetry_loop,
-        args=(port_to_ip, victim_ip, stop_event),
+        args=(port_to_ip, victim_ip, stop_event, drop_state),
         daemon=True,
     )
     telem.start()
 
-    # ── PHASE 1: Normal traffic ──────────────────────────────────────────────
-    print("=" * 60, flush=True)
-    print(f"  PHASE 1: Normal traffic ({NORMAL_PHASE}s)", flush=True)
-    print("=" * 60, flush=True)
+    # ── Main demo loop ────────────────────────────────────────────────────────
+    cycle = 0
+    loop_label = f"{LOOP_CYCLES} cycle(s)" if LOOP_CYCLES else "∞ (Ctrl-C to stop)"
+    print(f"[LIVE] Demo loop: {loop_label}\n", flush=True)
 
-    deadline = time.time() + NORMAL_PHASE
-    while time.time() < deadline:
-        for h in legit:
-            # -c 20 -i 0.2 → 20 pkts in 4s → pkts > SHORT_FLOW_PKT_THRESHOLD(3)
-            # so short_ratio stays 0 and model sees Normal traffic
-            h.cmd(f"ping -c 20 -i 0.2 -q {victim_ip} > /dev/null 2>&1 &")
-        time.sleep(5)
-        elapsed = int(time.time() - (deadline - NORMAL_PHASE))
-        print(f"[LIVE] Phase 1 — {elapsed}s/{NORMAL_PHASE}s", flush=True)
+    try:
+        while True:
+            cycle += 1
+            bar = "=" * 60
 
-    time.sleep(3)
-    p1 = get_stats()
-    print(f"\n[LIVE] End Phase 1 — detections: {p1['total_detections']} | "
-          f"DROP rules: {p1['drop_rules']}\n", flush=True)
+            # ── Phase 1: Normal traffic ──────────────────────────────────────
+            print(f"{bar}", flush=True)
+            print(f"  CYCLE {cycle} · PHASE 1: Normal traffic ({NORMAL_PHASE}s)",
+                  flush=True)
+            print(f"{bar}", flush=True)
 
-    # ── PHASE 2: DDoS SYN flood ─────────────────────────────────────────────
-    print("=" * 60, flush=True)
-    print(f"  PHASE 2: SYN flood h6 → h5 ({ATTACK_PHASE}s)", flush=True)
-    print("=" * 60, flush=True)
+            deadline = time.time() + NORMAL_PHASE
+            while time.time() < deadline:
+                for h in legit:
+                    h.cmd(f"ping -c 20 -i 0.2 -q {victim_ip} > /dev/null 2>&1 &")
+                time.sleep(5)
+                elapsed = int(time.time() - (deadline - NORMAL_PHASE))
+                print(f"[LIVE] C{cycle} Phase 1 — {elapsed}s/{NORMAL_PHASE}s",
+                      flush=True)
 
-    # Real SYN flood using hping3; no --rand-source so the controller
-    # can identify and block the specific attacker IP
-    hosts["h6"].cmd(
-        f"hping3 --syn --flood -p 80 {victim_ip} > /tmp/attack.log 2>&1 &"
-    )
+            p1 = get_stats()
+            print(f"\n[LIVE] End Phase 1 — detections: {p1['total_detections']} | "
+                  f"DROP: {p1['drop_rules']}\n", flush=True)
 
-    deadline = time.time() + ATTACK_PHASE
-    while time.time() < deadline:
-        for h in legit:
-            h.cmd(f"ping -c 20 -i 0.2 -q {victim_ip} > /dev/null 2>&1 &")
-        time.sleep(5)
-        elapsed = int(time.time() - (deadline - ATTACK_PHASE))
-        s_now = get_stats()
-        print(f"[LIVE] Phase 2 — {elapsed}s/{ATTACK_PHASE}s | "
-              f"detections: {s_now['total_detections']} | "
-              f"DROP: {s_now['drop_rules']}", flush=True)
+            # ── Phase 2: DDoS SYN flood ──────────────────────────────────────
+            print(f"{bar}", flush=True)
+            print(f"  CYCLE {cycle} · PHASE 2: SYN flood h6 → h5 ({ATTACK_PHASE}s)",
+                  flush=True)
+            print(f"{bar}", flush=True)
 
-    hosts["h6"].cmd("pkill hping3 2>/dev/null; true")
+            hosts["h6"].cmd(
+                f"hping3 --syn --flood -p 80 {victim_ip} > /tmp/attack.log 2>&1 &"
+            )
+
+            deadline = time.time() + ATTACK_PHASE
+            while time.time() < deadline:
+                for h in legit:
+                    h.cmd(f"ping -c 20 -i 0.2 -q {victim_ip} > /dev/null 2>&1 &")
+                time.sleep(5)
+                elapsed = int(time.time() - (deadline - ATTACK_PHASE))
+                s_now = get_stats()
+                print(f"[LIVE] C{cycle} Phase 2 — {elapsed}s/{ATTACK_PHASE}s | "
+                      f"detections: {s_now['total_detections']} | "
+                      f"DROP: {s_now['drop_rules']}", flush=True)
+
+            hosts["h6"].cmd("pkill hping3 2>/dev/null; true")
+
+            # ── Cycle results ────────────────────────────────────────────────
+            ft = get_flow_table()
+            blocked = attacker_ip in ft
+            fp      = any(h.IP() in ft for h in legit)
+            print(f"\n[LIVE] C{cycle} result: "
+                  f"{'✅ attacker blocked' if blocked else '⚠️ NOT blocked'} | "
+                  f"{'✅ no FP' if not fp else '⚠️ FP on legit host'}\n",
+                  flush=True)
+
+            # ── Check loop exit condition ────────────────────────────────────
+            if LOOP_CYCLES > 0 and cycle >= LOOP_CYCLES:
+                break
+
+            # ── Recovery phase: unblock and wait before next cycle ───────────
+            print(f"[LIVE] Recovery ({RECOVERY_PHASE}s) — "
+                  f"clearing DROP rules for next cycle...", flush=True)
+            try:
+                requests.post(f"{CONTROLLER_URL}/unblock", timeout=3)
+            except Exception:
+                pass
+            # Remove OVS DROP flow so the attacker can flood again next cycle
+            subprocess.run(
+                ["ovs-ofctl", "del-flows", "s1",
+                 f"ip,nw_src={attacker_ip}"],
+                capture_output=True,
+            )
+            drop_state["installed"].clear()   # telemetry thread can re-detect
+
+            deadline = time.time() + RECOVERY_PHASE
+            while time.time() < deadline:
+                for h in legit:
+                    h.cmd(f"ping -c 20 -i 0.2 -q {victim_ip} > /dev/null 2>&1 &")
+                time.sleep(5)
+                elapsed = int(time.time() - (deadline - RECOVERY_PHASE))
+                print(f"[LIVE] Recovery — {elapsed}s/{RECOVERY_PHASE}s", flush=True)
+
+    except KeyboardInterrupt:
+        print("\n[LIVE] Interrupted by user.", flush=True)
+
+    # ── Final results ─────────────────────────────────────────────────────────
     stop_event.set()
     telem.join(timeout=10)
-    time.sleep(2)
-
-    # ── Results ──────────────────────────────────────────────────────────────
-    print("\n" + "=" * 60, flush=True)
-    print("  RESULTS", flush=True)
-    print("=" * 60, flush=True)
 
     stats = get_stats()
-    ft    = get_flow_table()
-    topo  = get_topology()
+    print(f"\n[LIVE] Total cycles: {cycle} | "
+          f"Total detections: {stats['total_detections']}", flush=True)
 
-    print(f"  Nodes in Global Network View   : {stats['nodes']}", flush=True)
-    print(f"  Total anomaly detections       : {stats['total_detections']}", flush=True)
-    print(f"  Active DROP rules              : {list(ft.keys())}", flush=True)
-
-    print("\n  Host status:", flush=True)
-    for node in topo["nodes"]:
-        if node["type"] == "host":
-            status = node.get("status", "?")
-            tag    = "BLOCKED" if status == "blocked" else "OK     "
-            print(f"    [{tag}] {node['ip']}", flush=True)
-
-    print("\n  Recent events:", flush=True)
-    for ev in stats.get("recent_log", [])[-6:]:
-        print(f"    {ev['msg']}", flush=True)
-
-    blocked = attacker_ip in ft
-    fp      = any(h.IP() in ft for h in legit)
-    print()
-    if blocked:
-        print("[LIVE] SUCCESS — attacker blocked!", flush=True)
-    else:
-        print("[LIVE] WARNING — attacker NOT blocked (check logs).", flush=True)
-    if fp:
-        print("[LIVE] WARNING — false positive on a legit host!", flush=True)
-    else:
-        print("[LIVE] No false positives on legit hosts.", flush=True)
-
-    # ── Cleanup ──────────────────────────────────────────────────────────────
+    # ── Cleanup ───────────────────────────────────────────────────────────────
     print("\n[LIVE] Stopping Mininet...", flush=True)
     net.stop()
     print("[LIVE] Done.", flush=True)

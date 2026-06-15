@@ -73,6 +73,8 @@ services:
       - CONTROLLER_URL=http://controller:9000
       - NORMAL_PHASE=30
       - ATTACK_PHASE=30
+      - RECOVERY_PHASE=20
+      - LOOP_CYCLES=0
       - PYTHONUNBUFFERED=1
     depends_on:
       controller:

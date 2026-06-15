@@ -255,6 +255,18 @@ def get_stats():
     })
 
 
+@app.route("/unblock", methods=["POST"])
+def unblock():
+    """Clear DROP rules + reset blocked node statuses (used between demo cycles)."""
+    with flow_table.lock:
+        flow_table.rules.clear()
+    with gnv.lock:
+        for n in gnv.nodes.values():
+            if n.get("status") == "blocked":
+                n["status"] = "active"
+    return jsonify({"status": "unblocked"})
+
+
 @app.route("/reset", methods=["POST"])
 def reset():
     global _metrics_t0
