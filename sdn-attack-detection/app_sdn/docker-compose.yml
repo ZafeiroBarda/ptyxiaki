@@ -19,6 +19,9 @@ services:
       dockerfile: app_sdn/Dockerfile
     container_name: sdn_controller
     command: python3 app_sdn/controller.py
+    environment:
+      - SWITCH_API_KEY=sdn-secret-2024
+      - DEFENSE_MODE=0          # 1 για να ενεργοποιηθεί η άμυνα injection
     ports:
       - "9000:9000"          # REST API (southbound)
     networks: [sdn_net]
@@ -49,6 +52,8 @@ services:
       dockerfile: app_sdn/Dockerfile
     container_name: sdn_switch
     command: python3 app_sdn/switch.py --id s1 --controller http://controller:9000 --port 8000
+    environment:
+      - SWITCH_API_KEY=sdn-secret-2024
     depends_on:
       controller:
         condition: service_healthy
@@ -71,6 +76,7 @@ services:
       - SYS_ADMIN
     environment:
       - CONTROLLER_URL=http://controller:9000
+      - SWITCH_API_KEY=sdn-secret-2024
       - NORMAL_PHASE=30
       - ATTACK_PHASE=30
       - RECOVERY_PHASE=20
@@ -81,6 +87,43 @@ services:
         condition: service_healthy
     networks: [sdn_net]
     restart: "no"             # τρέχει μία φορά (demo scenario)
+
+  # ---------------------------------------------------------------
+  # Mode B: Ryu/OpenFlow controller
+  #   Start with: docker compose --profile ryu up
+  #   This replaces the standalone OVS switch with a proper OpenFlow 1.3
+  #   pipeline: Mininet topology → OVS → Ryu (OpenFlow) → Flask ML controller
+  # ---------------------------------------------------------------
+  ryu:
+    build:
+      context: ..
+      dockerfile: simulation/Dockerfile.mininet
+    container_name: sdn_ryu
+    profiles: ["ryu"]          # only starts with: docker compose --profile ryu up
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    command: >
+      bash -c "service openvswitch-switch start &&
+               ovs-vswitchd --detach --pidfile
+                 --log-file=/var/log/openvswitch/ovs-vswitchd.log || true &&
+               sleep 2 &&
+               python3 -u simulation/mininet_ryu.py"
+    environment:
+      - CONTROLLER_URL=http://controller:9000
+      - SWITCH_API_KEY=sdn-secret-2024
+      - NORMAL_PHASE=30
+      - ATTACK_PHASE=30
+      - RECOVERY_PHASE=20
+      - LOOP_CYCLES=0
+      - RYU_OFP_PORT=6653
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      controller:
+        condition: service_healthy
+    networks: [sdn_net]
+    restart: "no"
 
 networks:
   sdn_net:

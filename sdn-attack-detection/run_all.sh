@@ -60,6 +60,17 @@ python3 controller/offline_replay.py --windows 30
 
 echo ""
 echo "==================================================================="
+echo " ΒΗΜΑ 7/7 — Extended ML comparison (XGBoost / Autoencoder / ablation)"
+echo "==================================================================="
+if python3 -c "import xgboost" 2>/dev/null; then
+    python3 ml_pipeline/extended_eval.py $INSDN_FLAG
+else
+    echo ">>> xgboost not installed — τρέχω thesis_eval.py αντί"
+    python3 ml_pipeline/thesis_eval.py $INSDN_FLAG
+fi
+
+echo ""
+echo "==================================================================="
 echo " ΟΛΟΚΛΗΡΩΘΗΚΕ! Όλα τα αποτελέσματα & γραφήματα στον φάκελο results/"
 echo "==================================================================="
 ls -1 results/

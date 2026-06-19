@@ -1,0 +1,82 @@
+name: SDN Thesis CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          # Optional extras for extended eval
+          pip install xgboost lightgbm || true
+
+      - name: Run unit + API tests
+        run: |
+          pytest tests/test_app_sdn.py \
+                 tests/test_pipeline.py \
+                 tests/test_api_controller.py \
+                 tests/test_security_validation.py \
+                 tests/test_model_regression.py \
+                 -v --tb=short
+
+      - name: Run scenario tests
+        run: |
+          pytest tests/test_live_scenarios.py -v --tb=short
+
+  ml-smoke-test:
+    name: ML Pipeline Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate synthetic dataset
+        run: python3 ml_pipeline/generate_synthetic_dataset.py --hard
+
+      - name: Train live model
+        run: python3 controller/train_live_model.py
+
+      - name: Run offline evaluation
+        run: python3 ml_pipeline/evaluate.py
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ml-results
+          path: results/
+          retention-days: 7
+
+  docker-config:
+    name: Docker Compose Config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate docker-compose.yml
+        run: docker compose -f app_sdn/docker-compose.yml config --quiet
+
+      - name: Build images (no start)
+        run: docker compose -f app_sdn/docker-compose.yml build --parallel

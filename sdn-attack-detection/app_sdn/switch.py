@@ -27,12 +27,16 @@ import requests
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+SWITCH_API_KEY = os.environ.get("SWITCH_API_KEY", "sdn-secret-2024")
+
+
 class Switch:
     def __init__(self, switch_id, controller_url="http://127.0.0.1:9000",
                  poll_interval=3):
         self.switch_id = switch_id
         self.controller_url = controller_url.rstrip("/")
         self.poll_interval = poll_interval
+        self._auth_headers = {"X-Switch-Token": SWITCH_API_KEY}
         # στατιστικά ανά πηγή IP: src -> {dst, flows:[(pkts,bytes,dur)...], start}
         self.stats = {}
         self.blocked = set()        # πηγές με κανόνα DROP
@@ -44,7 +48,8 @@ class Switch:
         try:
             requests.post(f"{self.controller_url}/register",
                           json={"node_id": self.switch_id, "type": "switch",
-                                "ip": "0.0.0.0"}, timeout=3)
+                                "ip": "0.0.0.0"},
+                          headers=self._auth_headers, timeout=3)
         except Exception as e:
             print(f"[SWITCH {self.switch_id}] Αποτυχία εγγραφής: {e}")
 
@@ -86,7 +91,7 @@ class Switch:
             try:
                 r = requests.post(f"{self.controller_url}/telemetry",
                                   json={"src": src, "dst": dst, "flows": flows},
-                                  timeout=3)
+                                  headers=self._auth_headers, timeout=3)
                 action = r.json().get("action", "FORWARD")
                 if action == "DROP":
                     self.blocked.add(src)

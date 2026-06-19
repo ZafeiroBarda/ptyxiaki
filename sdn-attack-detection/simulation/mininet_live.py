@@ -24,12 +24,15 @@ import time
 
 import requests
 
-CONTROLLER_URL  = os.environ.get("CONTROLLER_URL", "http://controller:9000")
+CONTROLLER_URL  = os.environ.get("CONTROLLER_URL",  "http://controller:9000")
+SWITCH_API_KEY  = os.environ.get("SWITCH_API_KEY",  "sdn-secret-2024")
 NORMAL_PHASE    = int(os.environ.get("NORMAL_PHASE",    "30"))
 ATTACK_PHASE    = int(os.environ.get("ATTACK_PHASE",    "30"))
-RECOVERY_PHASE  = int(os.environ.get("RECOVERY_PHASE",  "20"))  # seconds between cycles
+RECOVERY_PHASE  = int(os.environ.get("RECOVERY_PHASE",  "20"))
 LOOP_CYCLES     = int(os.environ.get("LOOP_CYCLES",     "0"))   # 0 = infinite
-TELEM_INTERVAL  = 2  # seconds between telemetry snapshots (lower = smoother chart)
+TELEM_INTERVAL  = 2
+
+_SWITCH_HEADERS = {"X-Switch-Token": SWITCH_API_KEY}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -70,15 +73,24 @@ def register_host(name, ip):
 
 
 def get_stats():
-    return requests.get(f"{CONTROLLER_URL}/stats", timeout=5).json()
+    try:
+        return requests.get(f"{CONTROLLER_URL}/stats", timeout=5).json()
+    except Exception:
+        return {"total_detections": "?", "drop_rules": "?", "nodes": 0, "active_flows": 0, "recent_log": []}
 
 
 def get_flow_table():
-    return requests.get(f"{CONTROLLER_URL}/flow_table", timeout=5).json()
+    try:
+        return requests.get(f"{CONTROLLER_URL}/flow_table", timeout=5).json()
+    except Exception:
+        return {}
 
 
 def get_topology():
-    return requests.get(f"{CONTROLLER_URL}/topology", timeout=5).json()
+    try:
+        return requests.get(f"{CONTROLLER_URL}/topology", timeout=5).json()
+    except Exception:
+        return {"nodes": [], "edges": []}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -132,6 +144,63 @@ def install_drop_flow(src_ip, bridge="s1"):
 #  Background telemetry thread
 # ──────────────────────────────────────────────────────────────────────────────
 
+def sim_control_loop(hosts, stop_event):
+    """
+    Background thread — polls /simulate/poll for manual attack commands
+    sent from the dashboard. Allows victim/attacker selection at runtime.
+    """
+    active_attackers: set = set()
+
+    while not stop_event.is_set():
+        stop_event.wait(timeout=3)
+        if stop_event.is_set():
+            break
+        try:
+            cmd = requests.get(f"{CONTROLLER_URL}/simulate/poll", timeout=2).json()
+        except Exception:
+            continue
+        if not cmd or "cmd" not in cmd:
+            continue
+
+        if cmd["cmd"] == "start":
+            # Stop any existing manual attack first
+            for a in active_attackers:
+                hosts[a].cmd("pkill hping3 2>/dev/null; true")
+            active_attackers.clear()
+
+            victim      = cmd.get("victim", "h5")
+            attackers   = cmd.get("attackers", [])
+            attack_type = cmd.get("attack_type", "syn")
+
+            _attack_flags = {
+                "syn":  "--syn  --flood -p 80",
+                "udp":  "--udp  --flood -p 53",
+                "icmp": "--icmp --flood",
+            }
+            flags = _attack_flags.get(attack_type, "--syn --flood -p 80")
+
+            if victim not in hosts:
+                print(f"[SIM] Unknown victim: {victim}", flush=True)
+                continue
+            victim_ip_manual = hosts[victim].IP()
+            for a in attackers:
+                if a not in hosts or a == victim:
+                    continue
+                hosts[a].cmd(
+                    f"hping3 {flags} {victim_ip_manual} "
+                    f"> /tmp/attack_{a}.log 2>&1 &"
+                )
+                active_attackers.add(a)
+                print(f"[SIM] Manual {attack_type} attack: {a}({hosts[a].IP()}) → "
+                      f"{victim}({victim_ip_manual})", flush=True)
+
+        elif cmd["cmd"] == "stop":
+            for a in active_attackers:
+                hosts[a].cmd("pkill hping3 2>/dev/null; true")
+            print(f"[SIM] Manual attack stopped ({', '.join(active_attackers)})", flush=True)
+            active_attackers.clear()
+
+
 def telemetry_loop(port_to_ip, victim_ip, stop_event, drop_state,
                    interval=TELEM_INTERVAL):
     """
@@ -170,6 +239,7 @@ def telemetry_loop(port_to_ip, victim_ip, stop_event, drop_state,
                     f"{CONTROLLER_URL}/telemetry",
                     json={"src": src_ip, "dst": victim_ip,
                           "flows": [[dpkts, dbytes, interval]]},
+                    headers=_SWITCH_HEADERS,
                     timeout=3,
                 )
                 result = resp.json()
@@ -236,7 +306,7 @@ def main():
         register_host(name, h.IP())
     print("[LIVE] Hosts registered.\n", flush=True)
 
-    # ── 4. Start telemetry thread (runs across all cycles) ──────────────────
+    # ── 4. Start telemetry + sim-control threads ────────────────────────────
     drop_state = {"installed": set()}
     stop_event = threading.Event()
     telem = threading.Thread(
@@ -245,6 +315,12 @@ def main():
         daemon=True,
     )
     telem.start()
+    sim_ctrl = threading.Thread(
+        target=sim_control_loop,
+        args=(hosts, stop_event),
+        daemon=True,
+    )
+    sim_ctrl.start()
 
     # ── Main demo loop ────────────────────────────────────────────────────────
     cycle = 0

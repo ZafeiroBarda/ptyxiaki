@@ -23,6 +23,7 @@ REST API (southbound, προσομοιώνει OpenFlow):
   python3 app_sdn/controller.py            # στο http://127.0.0.1:9000
 """
 
+import csv
 import os
 import sys
 import time
@@ -31,6 +32,17 @@ from collections import deque
 
 import numpy as np
 from flask import Flask, request, jsonify
+
+# DEFENSE_MODE=1  → απορρίπτει telemetry χωρίς έγκυρο X-Switch-Token header
+# SWITCH_API_KEY  → το μυστικό token που πρέπει να γνωρίζουν οι νόμιμοι switches
+# ADMIN_API_KEY   → token για admin-only endpoints (/reset, /unblock)
+DEFENSE_MODE   = os.environ.get("DEFENSE_MODE",   "0") == "1"
+SWITCH_API_KEY = os.environ.get("SWITCH_API_KEY", "sdn-secret-2024")
+ADMIN_API_KEY  = os.environ.get("ADMIN_API_KEY",  "sdn-admin-2024")
+
+# Rate limiting: max requests per IP per RATE_WINDOW seconds on /telemetry
+RATE_LIMIT_MAX    = int(os.environ.get("RATE_LIMIT_MAX",    "120"))
+RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(BASE, "ml_pipeline"))
@@ -149,10 +161,69 @@ defense = DefenseEngine()
 _log = []
 
 # Rolling metrics history for the dashboard chart.
-# Stores {t, src, packets, bytes} entries — survives browser page refreshes.
-_metrics: deque = deque(maxlen=180)   # ~15 min at 5s telemetry interval
+_metrics: deque = deque(maxlen=1500)
 _metrics_lock = threading.Lock()
 _metrics_t0: float = None
+
+# ── Control Plane Security: injection attack detection ────────────────────────
+# Αποθηκεύει IPs εγγεγραμμένων switches (εγγράφονται μέσω POST /register).
+# Σε DEFENSE_MODE, μόνο αυτές οι IPs επιτρέπεται να στέλνουν telemetry.
+_trusted_switch_ips: set = set()
+_trusted_lock = threading.Lock()
+
+# Στατιστικά injection attempts για το dashboard / evaluation
+_injection_stats = {"attempts": 0, "blocked": 0, "sources": {}}
+_injection_lock  = threading.Lock()
+
+# ── Manual simulation control (triggered from dashboard) ─────────────────────
+_sim_pending: dict = {}   # set by /simulate/command, cleared on /simulate/poll
+_sim_lock = threading.Lock()
+
+# ── Rate limiter ──────────────────────────────────────────────────────────────
+_rate_counters: dict = {}   # ip -> {"count": int, "window_start": float}
+_rate_lock = threading.Lock()
+
+# ── Live CSV flow export ──────────────────────────────────────────────────────
+_LIVE_CSV = os.path.join(BASE, "data", "live_mininet_flows.csv")
+_CSV_HEADER = ["timestamp", "src_ip", "dst_ip", "packets", "bytes",
+               "flow_count", "packet_rate", "byte_rate", "short_flow_ratio",
+               "avg_pkt_size", "verdict", "action", "anomaly_score", "scenario"]
+_csv_lock = threading.Lock()
+_csv_initialized = False
+
+def _init_csv():
+    global _csv_initialized
+    if _csv_initialized:
+        return
+    os.makedirs(os.path.dirname(_LIVE_CSV), exist_ok=True)
+    write_header = not os.path.exists(_LIVE_CSV) or os.path.getsize(_LIVE_CSV) == 0
+    if write_header:
+        with open(_LIVE_CSV, "w", newline="") as f:
+            csv.writer(f).writerow(_CSV_HEADER)
+    _csv_initialized = True
+
+def _append_csv(row: dict):
+    _init_csv()
+    with _csv_lock:
+        with open(_LIVE_CSV, "a", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=_CSV_HEADER)
+            w.writerow(row)
+
+# ── Per-host anomaly score cache (latest score per IP) ────────────────────────
+_anomaly_scores: dict = {}  # ip -> float (raw IF score, lower = more anomalous)
+_scores_lock = threading.Lock()
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """Return True if request is allowed, False if rate limit exceeded."""
+    now = time.time()
+    with _rate_lock:
+        rec = _rate_counters.get(ip)
+        if rec is None or now - rec["window_start"] > RATE_LIMIT_WINDOW:
+            _rate_counters[ip] = {"count": 1, "window_start": now}
+            return True
+        rec["count"] += 1
+        return rec["count"] <= RATE_LIMIT_MAX
 
 
 def log_event(msg):
@@ -172,6 +243,15 @@ def register():
 
     gnv.add_node(data["node_id"], data.get("type", "host"), data["ip"])
     log_event(f"Εγγραφή κόμβου {data['node_id']} ({data['ip']})")
+
+    # Αν είναι switch, εμπιστευόμαστε την IP του ως πηγή telemetry
+    if data.get("type") == "switch":
+        caller_ip = request.remote_addr
+        with _trusted_lock:
+            _trusted_switch_ips.add(caller_ip)
+            _trusted_switch_ips.add(data["ip"])   # και η declared IP
+        log_event(f"Trusted switch IP: {caller_ip} / {data['ip']}")
+
     return jsonify({"status": "registered", "node_id": data["node_id"]})
 
 
@@ -198,11 +278,41 @@ def telemetry():
     ):
         return jsonify({"error": "'flows' must be a list of [packets, bytes, ...] entries"}), 400
 
-    total_pkts = sum(f[0] for f in flows)
+    # ── Rate limiting ─────────────────────────────────────────────────────────
+    caller_ip = request.remote_addr
+    if not _check_rate_limit(caller_ip):
+        return jsonify({"error": "Rate limit exceeded. Max "
+                        f"{RATE_LIMIT_MAX} requests per {RATE_LIMIT_WINDOW}s."}), 429
+
+    # ── Input validation ──────────────────────────────────────────────────────
+    if len(flows) > 5000:
+        return jsonify({"error": "Too many flows in single request (max 5000)"}), 400
+    if len(src) > 45 or len(dst) > 45:
+        return jsonify({"error": "IP address field too long"}), 400
+
+    # ── Control Plane Security: API token validation ──────────────────────────
+    token    = request.headers.get("X-Switch-Token", "")
+    token_ok = (token == SWITCH_API_KEY)
+
+    if not token_ok:
+        with _injection_lock:
+            _injection_stats["attempts"] += 1
+            _injection_stats["sources"][caller_ip] = \
+                _injection_stats["sources"].get(caller_ip, 0) + 1
+        log_event(f"⚠️  INJECTION ATTEMPT από {caller_ip} — ισχυρίζεται ότι src={src} επιτίθεται")
+        if DEFENSE_MODE:
+            with _injection_lock:
+                _injection_stats["blocked"] += 1
+            return jsonify({
+                "error": "Unauthorized: missing or invalid X-Switch-Token",
+                "detail": "Only registered switches may submit telemetry.",
+            }), 401
+
+    total_pkts  = sum(f[0] for f in flows)
     total_bytes = sum(f[1] for f in flows)
     gnv.update_flow(src, dst, total_pkts, total_bytes)
 
-    # Record in server-side metrics history so the dashboard chart survives refresh
+    # Record in server-side metrics history
     global _metrics_t0
     now = time.time()
     with _metrics_lock:
@@ -216,14 +326,50 @@ def telemetry():
         })
 
     verdict, feats = defense.analyze(flows)
+
+    # Compute raw anomaly score (lower = more anomalous) for dashboard
+    anomaly_score = None
+    if defense.iso is not None and defense.scaler is not None:
+        try:
+            X = defense.scaler.transform(feats.reshape(1, -1))
+            anomaly_score = float(defense.iso.score_samples(X)[0])
+            with _scores_lock:
+                _anomaly_scores[src] = anomaly_score
+        except Exception:
+            pass
+
     if verdict == "Attack" and flow_table.action_for(src) != "DROP":
-        flow_table.install(src, "DROP", priority=100, ttl=60)
+        flow_table.install(src, "DROP", priority=100, ttl=10)
         gnv.set_node_status(src, "blocked")
         log_event(f"🚨 ΑΝΩΜΑΛΙΑ από {src} (flows={int(feats[0])}, "
                   f"short_ratio={feats[7]:.2f}) -> DROP rule")
 
     action = flow_table.action_for(src)
-    return jsonify({"src": src, "action": action, "verdict": verdict})
+
+    # ── Live CSV export ────────────────────────────────────────────────────────
+    duration_s = feats[3] if len(feats) > 3 else 0
+    try:
+        _append_csv({
+            "timestamp":       round(now, 2),
+            "src_ip":          src,
+            "dst_ip":          dst,
+            "packets":         total_pkts,
+            "bytes":           total_bytes,
+            "flow_count":      int(feats[0]),
+            "packet_rate":     round(float(feats[1]), 3),
+            "byte_rate":       round(float(feats[2]), 3),
+            "short_flow_ratio":round(float(feats[7]), 3) if len(feats) > 7 else 0,
+            "avg_pkt_size":    round(float(feats[5]), 1) if len(feats) > 5 else 0,
+            "verdict":         verdict,
+            "action":          action,
+            "anomaly_score":   round(anomaly_score, 4) if anomaly_score is not None else "",
+            "scenario":        "live",
+        })
+    except Exception:
+        pass
+
+    return jsonify({"src": src, "action": action, "verdict": verdict,
+                    "anomaly_score": anomaly_score})
 
 
 @app.route("/metrics", methods=["GET"])
@@ -246,18 +392,52 @@ def get_topology():
 
 @app.route("/stats", methods=["GET"])
 def get_stats():
+    with _injection_lock:
+        inj = dict(_injection_stats)
     return jsonify({
         "nodes": len(gnv.nodes),
         "active_flows": len(gnv.flows),
-        "drop_rules": len(flow_table.as_dict()),
+        "drop_rules": len([r for r in flow_table.as_dict().values() if r["expires_in"] > 0]),
         "total_detections": defense.detections,
+        "injection_attempts": inj["attempts"],
+        "injection_blocked":  inj["blocked"],
         "recent_log": _log[-10:],
+        "rate_limited_ips": sum(
+            1 for v in _rate_counters.values()
+            if v["count"] > RATE_LIMIT_MAX and
+               time.time() - v["window_start"] < RATE_LIMIT_WINDOW
+        ),
     })
+
+
+@app.route("/injection_stats", methods=["GET"])
+def injection_stats():
+    """Αναλυτικά στατιστικά injection attempts — για evaluation."""
+    with _injection_lock:
+        return jsonify(dict(_injection_stats))
+
+
+@app.route("/trusted_switches", methods=["GET"])
+def trusted_switches():
+    with _trusted_lock:
+        return jsonify({"trusted_ips": list(_trusted_switch_ips),
+                        "defense_mode": DEFENSE_MODE})
+
+
+@app.route("/anomaly_scores", methods=["GET"])
+def get_anomaly_scores():
+    """Latest IF anomaly score per host IP (lower = more anomalous, threshold ~0)."""
+    with _scores_lock:
+        return jsonify(dict(_anomaly_scores))
 
 
 @app.route("/unblock", methods=["POST"])
 def unblock():
-    """Clear DROP rules + reset blocked node statuses (used between demo cycles)."""
+    """Clear DROP rules + reset blocked node statuses. Admin-only in DEFENSE_MODE."""
+    if DEFENSE_MODE:
+        token = request.headers.get("X-Admin-Token", "")
+        if token != ADMIN_API_KEY:
+            return jsonify({"error": "Unauthorized: X-Admin-Token required"}), 401
     with flow_table.lock:
         flow_table.rules.clear()
     with gnv.lock:
@@ -268,7 +448,7 @@ def unblock():
 
 
 @app.route("/reset", methods=["POST"])
-def reset():
+def reset():  # Admin-only in DEFENSE_MODE
     global _metrics_t0
     gnv.nodes.clear(); gnv.flows.clear()
     flow_table.rules.clear(); _log.clear()
@@ -276,7 +456,31 @@ def reset():
     with _metrics_lock:
         _metrics.clear()
         _metrics_t0 = None
+    with _injection_lock:
+        _injection_stats["attempts"] = 0
+        _injection_stats["blocked"]  = 0
+        _injection_stats["sources"]  = {}
+    with _trusted_lock:
+        _trusted_switch_ips.clear()
     return jsonify({"status": "reset"})
+
+
+@app.route("/simulate/command", methods=["POST"])
+def simulate_command():
+    """Dashboard → set a pending sim command {cmd, attackers, victim}."""
+    with _sim_lock:
+        _sim_pending.clear()
+        _sim_pending.update(request.json or {})
+    return jsonify({"status": "queued"})
+
+
+@app.route("/simulate/poll", methods=["GET"])
+def simulate_poll():
+    """Mininet polls this to pick up pending commands (one-shot, clears on read)."""
+    with _sim_lock:
+        cmd = dict(_sim_pending)
+        _sim_pending.clear()
+    return jsonify(cmd)
 
 
 @app.route("/health", methods=["GET"])
