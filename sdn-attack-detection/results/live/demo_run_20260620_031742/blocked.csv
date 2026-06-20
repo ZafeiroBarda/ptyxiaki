@@ -1,0 +1,2 @@
+ip,action,priority,expires_in
+10.0.0.6,DROP,100,6.2

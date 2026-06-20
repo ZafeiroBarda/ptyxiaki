@@ -1,0 +1,2 @@
+scenario,total_legit_hosts,false_positives,fp_rate_pct,fp_ips
+legitimate_only,4,0,0.0,[]

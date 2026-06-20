@@ -1,0 +1,22 @@
+{
+  "scenario": "arp_spoof",
+  "duration": 20,
+  "normal_phase_s": 10,
+  "attack_phase_s": 10,
+  "attacker_ip": "10.0.0.6",
+  "victim_ip": "10.0.0.5",
+  "impersonated_ip": "10.0.0.1",
+  "detections": 5,
+  "false_positives": 0,
+  "true_positives": 0,
+  "false_negatives": 2,
+  "true_negatives": 4,
+  "detection_latency_s": null,
+  "attacker_blocked": true,
+  "impersonated_ip_blocked": false,
+  "blocked_ips": [
+    "10.0.0.6"
+  ],
+  "attack_batches_sent": 2,
+  "success": true
+}

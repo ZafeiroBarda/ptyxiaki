@@ -1,0 +1,26 @@
+{
+  "scenario": "flow_exhaustion",
+  "duration": 20,
+  "normal_phase_s": 10,
+  "attack_phase_s": 10,
+  "detections": 10,
+  "false_positives": 0,
+  "true_positives": 4,
+  "false_negatives": 0,
+  "true_negatives": 0,
+  "detection_latency_s": 0.14,
+  "per_host_detection_s": {
+    "10.0.0.1": 0.04,
+    "10.0.0.2": 0.11,
+    "10.0.0.3": 0.17,
+    "10.0.0.4": 0.22
+  },
+  "blocked_ips": [
+    "10.0.0.1",
+    "10.0.0.2",
+    "10.0.0.3",
+    "10.0.0.4"
+  ],
+  "flows_per_host_per_poll": 300,
+  "success": true
+}

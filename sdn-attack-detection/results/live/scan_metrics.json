@@ -1,0 +1,18 @@
+{
+  "scenario": "port_scan",
+  "duration": 20,
+  "normal_phase_s": 10,
+  "attack_phase_s": 10,
+  "detections": 2,
+  "false_positives": 0,
+  "true_positives": 2,
+  "false_negatives": 0,
+  "true_negatives": 4,
+  "detection_latency_s": 0.24,
+  "blocked_ips": [
+    "10.0.0.6"
+  ],
+  "attacker_blocked": true,
+  "scan_batches_sent": 2,
+  "success": true
+}

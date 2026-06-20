@@ -1,0 +1,25 @@
+{
+  "scenario": "data_exfiltration",
+  "duration": 20,
+  "normal_phase_s": 10,
+  "attack_phase_s": 10,
+  "bandwidth_mbps": 8.0,
+  "total_bytes_exfiltrated": 10000000,
+  "total_mb_exfiltrated": 9.54,
+  "detections": 10,
+  "false_positives": 4,
+  "true_positives": 2,
+  "false_negatives": 0,
+  "true_negatives": 1,
+  "detection_latency_s": 0.71,
+  "blocked_ips": [
+    "10.0.0.1",
+    "10.0.0.2",
+    "10.0.0.3",
+    "10.0.0.4",
+    "10.0.0.6"
+  ],
+  "attacker_blocked": true,
+  "exfil_batches_sent": 2,
+  "success": false
+}

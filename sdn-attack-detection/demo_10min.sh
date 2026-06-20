@@ -24,10 +24,13 @@ BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 # ── Config ────────────────────────────────────────────────────────────────────
 CONTROLLER="http://localhost:9000"
 DASHBOARD="http://localhost:8050"
-ATTACK_TYPE="${1:-syn}"
+ATTACK_TYPE="syn"
 NO_BUILD=0
-for arg in "$@"; do [[ "$arg" == "--no-build" ]] && NO_BUILD=1; done
-for arg in "$@"; do [[ "$arg" == --attack-type=* ]] && ATTACK_TYPE="${arg#*=}"; done
+for arg in "$@"; do
+    [[ "$arg" == "--no-build" ]]      && NO_BUILD=1
+    [[ "$arg" == --attack-type=* ]]   && ATTACK_TYPE="${arg#*=}"
+    [[ "$arg" == "syn" || "$arg" == "udp" || "$arg" == "icmp" ]] && ATTACK_TYPE="$arg"
+done
 
 RUN_ID="demo_run_$(date +%Y%m%d_%H%M%S)"
 RESULTS_DIR="results/live/${RUN_ID}"

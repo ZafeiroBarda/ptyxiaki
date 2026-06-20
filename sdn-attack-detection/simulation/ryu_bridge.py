@@ -38,9 +38,12 @@ except ImportError:
     from os_ken.ofproto import ofproto_v1_3
 
 
-CONTROLLER_URL = os.environ.get("CONTROLLER_URL", "http://controller:9000")
-POLL_INTERVAL  = int(os.environ.get("POLL_INTERVAL", "5"))
+CONTROLLER_URL  = os.environ.get("CONTROLLER_URL",  "http://controller:9000")
+SWITCH_API_KEY  = os.environ.get("SWITCH_API_KEY",  "sdn-secret-2024")
+POLL_INTERVAL   = int(os.environ.get("POLL_INTERVAL", "5"))
 SHORT_FLOW_PKT_THRESHOLD = 3   # ροή με <= τόσα packets θεωρείται "σύντομη" (flood)
+
+_AUTH_HEADERS = {"X-Switch-Token": SWITCH_API_KEY, "Content-Type": "application/json"}
 
 
 class RyuBridge(app_manager.RyuApp):
@@ -175,6 +178,7 @@ class RyuBridge(app_manager.RyuApp):
             r = requests.post(
                 f"{CONTROLLER_URL}/telemetry",
                 json={"src": src_ip, "dst": "network", "flows": flows},
+                headers=_AUTH_HEADERS,
                 timeout=3,
             )
             action = r.json().get("action", "FORWARD")

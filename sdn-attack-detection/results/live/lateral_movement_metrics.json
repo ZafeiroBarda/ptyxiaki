@@ -1,0 +1,21 @@
+{
+  "scenario": "lateral_movement",
+  "duration": 20,
+  "normal_phase_s": 10,
+  "attack_phase_s": 10,
+  "attacker_ip": "10.0.0.3",
+  "targets_scanned": 4,
+  "detections": 3,
+  "false_positives": 1,
+  "true_positives": 1,
+  "false_negatives": 0,
+  "true_negatives": 4,
+  "detection_latency_s": 0.31,
+  "blocked_ips": [
+    "10.0.0.3",
+    "10.0.0.6"
+  ],
+  "attacker_blocked": true,
+  "scan_batches_sent": 2,
+  "success": false
+}

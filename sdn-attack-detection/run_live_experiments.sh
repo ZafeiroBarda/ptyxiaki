@@ -59,18 +59,17 @@ run_scenario() {
     curl -sf -X POST "$CONTROLLER/reset" > /dev/null 2>&1 || true
     sleep 2
 
-    # Run scenario
+    # Run scenario (scenarios save CSVs themselves to results/live/)
     python3 "$script" \
         --controller "$CONTROLLER" \
         --duration "$DURATION" \
         --standalone \
-        --output "$out_csv" \
-        2>&1 | grep -E "\[(SIM|RESULT|ERROR)\]" || true
+        2>&1 | grep -E "\[|RESULT|ERROR|SIM|SCAN|EXFIL|EXHAUST|LATERAL|ARP" || true
 
     if [[ -f "$out_csv" ]]; then
         echo "  ✔ Results: $out_csv"
     else
-        echo "  ⚠ No output CSV produced"
+        echo "  ⚠ No output CSV (scenario may save under a different name)"
     fi
 }
 
@@ -180,9 +179,19 @@ else
     echo "  ⚠ simulation/scenarios/lateral_movement.py not found, skipping"
 fi
 
+# ── ARP Spoof / MITM ─────────────────────────────────────────────────────────
+echo ""
+echo "[6/8] ARP Spoof / MITM"
+if [[ -f "simulation/scenarios/arp_spoof.py" ]]; then
+    run_scenario "ARP Spoof" "simulation/scenarios/arp_spoof.py" \
+        "${RESULTS}/arp_spoof_metrics.csv"
+else
+    echo "  ⚠ simulation/scenarios/arp_spoof.py not found, skipping"
+fi
+
 # ── Mitigation Latency (combined) ────────────────────────────────────────────
 echo ""
-echo "[6/7] Collecting mitigation latency metrics..."
+echo "[7/8] Collecting mitigation latency metrics..."
 
 python3 - <<PYEOF
 import csv, os, glob, json
@@ -216,7 +225,7 @@ PYEOF
 
 # ── False Positive Rate ───────────────────────────────────────────────────────
 echo ""
-echo "[7/7] False Positive Rate Analysis..."
+echo "[8/8] False Positive Rate Analysis..."
 
 python3 - <<PYEOF
 import csv, os, glob, json, requests, time

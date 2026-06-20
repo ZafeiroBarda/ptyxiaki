@@ -1,0 +1,3 @@
+scenario,detection_latency_s,attacker_blocked,false_positives
+ddos_syn_flood,0.9,True,0
+arp_spoof,None,0,0,["10.0.0.6"],True

@@ -1,0 +1,2 @@
+scenario,duration,normal_phase_s,attack_phase_s,detections,false_positives,true_positives,false_negatives,true_negatives,detection_latency_s,blocked_ips,attacker_blocked,scan_batches_sent,success
+port_scan,20,10,10,2,0,2,0,4,0.24,['10.0.0.6'],True,2,True
