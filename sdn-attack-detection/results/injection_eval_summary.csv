@@ -1,0 +1,2 @@
+injection_attempts,detection_rate,block_rate,false_positive_rate,latency_overhead_ms,host_compromised
+30,1.0,0.0,0.0,-1.24,True
