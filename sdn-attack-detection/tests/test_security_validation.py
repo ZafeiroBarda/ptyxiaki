@@ -80,7 +80,11 @@ def test_valid_token_passes_defense_mode(client, monkeypatch):
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 
-def test_rate_limit_triggers(client):
+def test_rate_limit_triggers(client, monkeypatch):
+    # RATE_LIMIT_MAX from os.environ (line 16) only applies if this module is the
+    # first to import controller; under the full suite the module is already cached
+    # with the default (120), so pin the limit explicitly.
+    monkeypatch.setattr(ctrl, "RATE_LIMIT_MAX", 50)
     payload = {"src": "10.0.0.77", "dst": "10.0.0.5", "flows": [[1, 100, 0.1]]}
     codes = []
     for _ in range(80):

@@ -462,6 +462,8 @@ def reset():  # Admin-only in DEFENSE_MODE
         _injection_stats["sources"]  = {}
     with _trusted_lock:
         _trusted_switch_ips.clear()
+    with _rate_lock:
+        _rate_counters.clear()
     return jsonify({"status": "reset"})
 
 

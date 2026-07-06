@@ -319,6 +319,16 @@ def save_results(result: dict[str, Any]) -> Path:
     return out
 
 
+# ── uniform entry point ──────────────────────────────────────────────────────
+
+def run(controller_url: str, duration: int = 60, standalone: bool = True,
+        net=None) -> dict[str, Any]:
+    """Uniform entry point: standalone (crafted telemetry) or Mininet mode."""
+    if standalone or net is None:
+        return run_standalone(controller_url, duration)
+    return run_mininet(net, controller_url, duration)
+
+
 # ── entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
