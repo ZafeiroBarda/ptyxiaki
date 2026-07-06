@@ -1,0 +1,3 @@
+model,clean_accuracy,clean_macro_f1
+Original RF,0.9998,0.9998
+Robust RF,0.9993,0.9992
