@@ -45,20 +45,86 @@ _ATTACK_TYPES = [
 app = dash.Dash(__name__)
 app.title = "SDN Defense Dashboard"
 
+# ── Ζώνες αρχιτεκτονικής SDN (planes) ─────────────────────────────────────────
+# Κάθε τμήμα του dashboard αντιστοιχεί σε ΕΝΑ επίπεδο της αρχιτεκτονικής SDN,
+# ώστε η δομή να διαβάζεται άμεσα, όπως στο κλασικό διάγραμμα SDN:
+#   Management (πάνω)  →  Control & Defense (μέση)  →  Data (κάτω).
+_PLANE = {
+    "mgmt": {
+        "name": "MANAGEMENT PLANE",
+        "tech": "Dash / Plotly · Κονσόλα χειριστή & οπτικοποίηση",
+        "color": "#1F4E79", "icon": "🖥️",
+    },
+    "control": {
+        "name": "CONTROL & DEFENSE PLANE",
+        "tech": "Flask Controller · Isolation Forest (Intelligence/Defense) · Flow Table",
+        "color": "#6A4C93", "icon": "🧠",
+    },
+    "data": {
+        "name": "DATA PLANE",
+        "tech": "Mininet + Open vSwitch · Hosts, ροές & προώθηση πακέτων",
+        "color": "#1B7A3D", "icon": "🔀",
+    },
+}
+
+
+def _plane_header(key):
+    """Χρωματιστή επικεφαλίδα ζώνης με το όνομα του plane και την τεχνολογία του."""
+    p = _PLANE[key]
+    return html.Div(
+        style={"display": "flex", "alignItems": "center", "gap": "10px",
+               "background": p["color"], "color": "white", "padding": "7px 16px",
+               "borderRadius": "8px 8px 0 0"},
+        children=[
+            html.Span(p["icon"], style={"fontSize": "17px"}),
+            html.Span(p["name"], style={"fontWeight": "bold", "fontSize": "13px",
+                                        "letterSpacing": "1.5px"}),
+            html.Span(p["tech"], style={"fontSize": "11px", "opacity": "0.85"}),
+        ],
+    )
+
+
+def _plane_band(key, body_children, body_style=None):
+    """Πλήρης ζώνη: επικεφαλίδα plane + λευκό σώμα με το περιεχόμενο."""
+    inner = {"background": "white", "border": "1px solid #DDD", "borderTop": "none",
+             "borderRadius": "0 0 8px 8px", "padding": "12px"}
+    if body_style:
+        inner.update(body_style)
+    return html.Div(style={"padding": "0 10px"}, children=[
+        _plane_header(key),
+        html.Div(style=inner, children=body_children),
+    ])
+
+
+def _plane_connector(up_label, down_label):
+    """Δείχνει τη ροή δεδομένων ανάμεσα σε δύο γειτονικές ζώνες (southbound/northbound)."""
+    return html.Div(
+        style={"display": "flex", "justifyContent": "center", "gap": "36px",
+               "padding": "4px 0", "fontSize": "11px", "color": "#5A5A5A",
+               "fontFamily": "monospace", "flexWrap": "wrap"},
+        children=[
+            html.Span(f"▲  {up_label}"),
+            html.Span(f"{down_label}  ▼"),
+        ],
+    )
+
 app.layout = html.Div(
-    style={"fontFamily": "'Segoe UI', Arial, sans-serif", "margin": "0", "background": "#F0F4F8"},
+    style={"fontFamily": "'Segoe UI', Arial, sans-serif", "margin": "0",
+           "background": "#F0F4F8", "paddingBottom": "16px"},
     children=[
 
-        # ── Header ───────────────────────────────────────────────────────────
+        # ── Τίτλος εφαρμογής ──────────────────────────────────────────────────
         html.Div(
-            style={"background": "#1F4E79", "color": "white", "padding": "12px 24px",
+            style={"background": "#12325A", "color": "white", "padding": "12px 24px",
                    "display": "flex", "justifyContent": "space-between", "alignItems": "center"},
             children=[
                 html.Div([
-                    html.H2("SDN Defense Dashboard — Global Network View",
+                    html.H2("SDN Defense Dashboard",
                             style={"margin": "0", "fontSize": "20px"}),
-                    html.Span("Isolation Forest · Mininet + OVS · Real-time Anomaly Detection",
-                              style={"fontSize": "12px", "opacity": "0.8"}),
+                    html.Span("Αρχιτεκτονική τριών επιπέδων "
+                              "(Management · Control/Defense · Data) — "
+                              "Real-time ανίχνευση ανωμαλιών με Isolation Forest",
+                              style={"fontSize": "12px", "opacity": "0.85"}),
                 ]),
                 html.Div(id="phase-badge"),
             ],
@@ -67,118 +133,120 @@ app.layout = html.Div(
         # ── Attack alert banner ───────────────────────────────────────────────
         html.Div(id="alert-banner"),
 
-        # ── 3-column main layout ──────────────────────────────────────────────
-        html.Div(
-            style={"display": "flex", "gap": "10px", "padding": "10px"},
-            children=[
-
-                # Host Status Panel
-                html.Div(
-                    style={"flex": "2", "background": "white", "borderRadius": "8px",
-                           "border": "1px solid #DDD", "padding": "12px"},
-                    children=[
-                        html.H4("Network Hosts",
-                                style={"margin": "0 0 10px", "color": "#1F4E79", "fontSize": "13px"}),
-                        html.Div(id="host-panel"),
-                    ],
-                ),
-
-                # Packet rate chart
-                html.Div(
-                    style={"flex": "3", "background": "white", "borderRadius": "8px",
-                           "border": "1px solid #DDD", "padding": "12px"},
-                    children=[
-                        html.H4("Packet Rate per Host  (pkts / window, log scale)",
-                                style={"margin": "0 0 6px", "color": "#1F4E79", "fontSize": "13px"}),
-                        dcc.Graph(id="rate-chart", style={"height": "500px"},
-                                  config={"displayModeBar": False}),
-                    ],
-                ),
-
-                # Stats panel
-                html.Div(
-                    style={"flex": "1", "background": "white", "borderRadius": "8px",
-                           "border": "1px solid #DDD", "padding": "16px",
-                           "overflowY": "auto", "maxHeight": "530px"},
-                    children=[
-                        html.Div(id="stats-panel"),
-                        html.Hr(style={"margin": "10px 0"}),
-                        html.H4("Anomaly Scores", style={"color": "#1F4E79",
-                                "fontSize": "13px", "margin": "0 0 6px"}),
-                        html.Div(id="anomaly-panel"),
-                        html.Hr(style={"margin": "10px 0"}),
-                        html.A("⬇ Export CSV", href="/export/flows.csv",
-                               style={"display": "inline-block", "background": "#4C72B0",
-                                      "color": "white", "padding": "6px 14px",
-                                      "borderRadius": "6px", "fontSize": "12px",
-                                      "textDecoration": "none", "marginRight": "6px"}),
-                        html.A("⬇ Blocked History", href="/export/blocked.csv",
-                               style={"display": "inline-block", "background": "#888",
-                                      "color": "white", "padding": "6px 14px",
-                                      "borderRadius": "6px", "fontSize": "12px",
-                                      "textDecoration": "none"}),
-                    ],
-                ),
+        # ══════════════════ MANAGEMENT PLANE (πάνω) ═══════════════════════════
+        _plane_band("mgmt",
+            body_style={"display": "flex", "alignItems": "center",
+                        "gap": "18px", "flexWrap": "wrap"},
+            body_children=[
+                html.Span("🎮 Demo Control",
+                          style={"fontWeight": "bold", "color": "#1F4E79",
+                                 "fontSize": "13px", "whiteSpace": "nowrap"}),
+                html.Div([
+                    html.Label("Victim", style={"fontSize": "11px", "color": "#666",
+                                                "display": "block", "marginBottom": "3px"}),
+                    dcc.Dropdown(
+                        id="victim-select",
+                        options=[{"label": f"{h['id']} ({h['ip']})", "value": h["id"]}
+                                 for h in _HOSTS],
+                        value="h5", clearable=False,
+                        style={"width": "160px", "fontSize": "12px"},
+                    ),
+                ]),
+                html.Div([
+                    html.Label("Attacker(s)", style={"fontSize": "11px", "color": "#666",
+                                                     "display": "block", "marginBottom": "3px"}),
+                    dcc.Dropdown(
+                        id="attacker-select",
+                        options=[{"label": f"{h['id']} ({h['ip']})", "value": h["id"]}
+                                 for h in _HOSTS],
+                        value=["h6"], multi=True, clearable=False,
+                        style={"width": "260px", "fontSize": "12px"},
+                    ),
+                ]),
+                html.Div([
+                    html.Label("Attack Type", style={"fontSize": "11px", "color": "#666",
+                                                     "display": "block", "marginBottom": "3px"}),
+                    dcc.Dropdown(
+                        id="attack-type-select",
+                        options=[{"label": a["label"], "value": a["value"]}
+                                 for a in _ATTACK_TYPES],
+                        value="syn", clearable=False,
+                        style={"width": "150px", "fontSize": "12px"},
+                    ),
+                ]),
+                html.Button("🚀 Start Attack", id="btn-start", n_clicks=0, style={
+                    "background": "#C44E52", "color": "white", "border": "none",
+                    "padding": "8px 18px", "borderRadius": "6px", "cursor": "pointer",
+                    "fontWeight": "bold", "fontSize": "13px",
+                }),
+                html.Button("🛑 Stop Attack", id="btn-stop", n_clicks=0, style={
+                    "background": "#555", "color": "white", "border": "none",
+                    "padding": "8px 18px", "borderRadius": "6px", "cursor": "pointer",
+                    "fontSize": "13px",
+                }),
+                html.Div(id="sim-status", style={"fontSize": "12px", "color": "#555"}),
+                html.Div(style={"flex": "1"}),  # spacer σπρώχνει τα export δεξιά
+                html.A("⬇ Export CSV", href="/export/flows.csv",
+                       style={"display": "inline-block", "background": "#4C72B0",
+                              "color": "white", "padding": "6px 14px",
+                              "borderRadius": "6px", "fontSize": "12px",
+                              "textDecoration": "none", "marginRight": "6px"}),
+                html.A("⬇ Blocked History", href="/export/blocked.csv",
+                       style={"display": "inline-block", "background": "#888",
+                              "color": "white", "padding": "6px 14px",
+                              "borderRadius": "6px", "fontSize": "12px",
+                              "textDecoration": "none"}),
             ],
         ),
 
-        # ── Demo Control Panel ────────────────────────────────────────────────
-        html.Div(
-            style={"padding": "0 10px 10px"},
-            children=[html.Div(
-                style={"background": "white", "borderRadius": "8px", "border": "1px solid #DDD",
-                       "padding": "14px 20px", "display": "flex", "alignItems": "center",
-                       "gap": "20px", "flexWrap": "wrap"},
-                children=[
-                    html.Span("🎮 Demo Control",
-                              style={"fontWeight": "bold", "color": "#1F4E79",
-                                     "fontSize": "13px", "whiteSpace": "nowrap"}),
-                    html.Div([
-                        html.Label("Victim", style={"fontSize": "11px", "color": "#666",
-                                                    "display": "block", "marginBottom": "3px"}),
-                        dcc.Dropdown(
-                            id="victim-select",
-                            options=[{"label": f"{h['id']} ({h['ip']})", "value": h["id"]}
-                                     for h in _HOSTS],
-                            value="h5", clearable=False,
-                            style={"width": "160px", "fontSize": "12px"},
-                        ),
-                    ]),
-                    html.Div([
-                        html.Label("Attacker(s)", style={"fontSize": "11px", "color": "#666",
-                                                         "display": "block", "marginBottom": "3px"}),
-                        dcc.Dropdown(
-                            id="attacker-select",
-                            options=[{"label": f"{h['id']} ({h['ip']})", "value": h["id"]}
-                                     for h in _HOSTS],
-                            value=["h6"], multi=True, clearable=False,
-                            style={"width": "260px", "fontSize": "12px"},
-                        ),
-                    ]),
-                    html.Div([
-                        html.Label("Attack Type", style={"fontSize": "11px", "color": "#666",
-                                                         "display": "block", "marginBottom": "3px"}),
-                        dcc.Dropdown(
-                            id="attack-type-select",
-                            options=[{"label": a["label"], "value": a["value"]}
-                                     for a in _ATTACK_TYPES],
-                            value="syn", clearable=False,
-                            style={"width": "150px", "fontSize": "12px"},
-                        ),
-                    ]),
-                    html.Button("🚀 Start Attack", id="btn-start", n_clicks=0, style={
-                        "background": "#C44E52", "color": "white", "border": "none",
-                        "padding": "8px 18px", "borderRadius": "6px", "cursor": "pointer",
-                        "fontWeight": "bold", "fontSize": "13px",
-                    }),
-                    html.Button("🛑 Stop Attack", id="btn-stop", n_clicks=0, style={
-                        "background": "#555", "color": "white", "border": "none",
-                        "padding": "8px 18px", "borderRadius": "6px", "cursor": "pointer",
-                        "fontSize": "13px",
-                    }),
-                    html.Div(id="sim-status", style={"fontSize": "12px", "color": "#555"}),
-                ],
-            )],
+        _plane_connector(
+            "κατάσταση / μετρικές: GET /stats · /metrics · /flow_table (poll 1s)",
+            "εντολές χειριστή: POST /simulate/command",
+        ),
+
+        # ══════════════════ CONTROL & DEFENSE PLANE (μέση) ════════════════════
+        _plane_band("control",
+            body_style={"display": "flex", "gap": "12px", "alignItems": "flex-start",
+                        "flexWrap": "wrap"},
+            body_children=[
+                html.Div(style={"flex": "2", "minWidth": "300px"}, children=[
+                    html.Div(id="stats-panel"),
+                ]),
+                html.Div(style={"flex": "1", "minWidth": "220px",
+                                "borderLeft": "1px solid #EEE", "paddingLeft": "12px"},
+                         children=[
+                             html.H4("Anomaly Scores — Isolation Forest f(x)",
+                                     style={"color": "#6A4C93", "fontSize": "13px",
+                                            "margin": "0 0 8px"}),
+                             html.Div(id="anomaly-panel"),
+                         ]),
+            ],
+        ),
+
+        _plane_connector(
+            "τηλεμετρία ροών: POST /telemetry  (packets · bytes · duration ανά πηγή IP)",
+            "αντιμετώπιση: εγκατάσταση κανόνων DROP στο Flow Table",
+        ),
+
+        # ══════════════════ DATA PLANE (κάτω) ═════════════════════════════════
+        _plane_band("data",
+            body_style={"display": "flex", "gap": "12px", "alignItems": "flex-start",
+                        "flexWrap": "wrap"},
+            body_children=[
+                html.Div(style={"flex": "2", "minWidth": "280px"}, children=[
+                    html.H4("Network Hosts (h1–h6) & Switch",
+                            style={"margin": "0 0 10px", "color": "#1B7A3D",
+                                   "fontSize": "13px"}),
+                    html.Div(id="host-panel"),
+                ]),
+                html.Div(style={"flex": "3", "minWidth": "320px"}, children=[
+                    html.H4("Packet Rate per Host  (pkts / window, log scale)",
+                            style={"margin": "0 0 6px", "color": "#1B7A3D",
+                                   "fontSize": "13px"}),
+                    dcc.Graph(id="rate-chart", style={"height": "460px"},
+                              config={"displayModeBar": False}),
+                ]),
+            ],
         ),
 
         dcc.Store(id="history", data={"t": [], "rates": {}, "blocked": [], "t0": None}),
