@@ -6,7 +6,11 @@
 # ============================================================================
 
 # --- ML pipeline (Μέθοδος Β) ---
-scikit-learn>=1.3
+# ΣΗΜΕΙΩΣΗ: τα αποθηκευμένα models/*.pkl εκπαιδεύτηκαν με scikit-learn 1.9
+# (βλ. models/meta.json -> trained_with). Φόρτωσή τους με παλαιότερη έκδοση
+# βγάζει InconsistentVersionWarning — γι' αυτό ζητάμε >=1.9. Εναλλακτικά,
+# αναδημιούργησέ τα με τη δική σου έκδοση: bash run_all.sh
+scikit-learn>=1.9
 pandas>=2.0
 numpy>=1.24
 matplotlib>=3.7

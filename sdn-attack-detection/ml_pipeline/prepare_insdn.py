@@ -7,7 +7,10 @@ prepare_insdn.py  (προετοιμασία πραγματικού InSDN dataset
 στις 5 βασικές κλάσεις και αποθηκεύει ένα έτοιμο data/InSDN_dataset.csv.
 
 Χρήση:
+  python3 ml_pipeline/prepare_insdn.py                     # ψάχνει στο data/InSDN_raw/
   python3 ml_pipeline/prepare_insdn.py --src /path/to/InSDN_DatasetCSV
+
+Το InSDN διατίθεται από: https://aseados.ucd.ie/datasets/SDN/
 """
 
 import os
@@ -85,8 +88,10 @@ def main(src_dir):
 
 
 if __name__ == "__main__":
+    # Προεπιλογή σχετική με το repo — όχι απόλυτο path ανάπτυξης.
+    default_src = os.path.join(config.DATA_DIR, "InSDN_raw")
     parser = argparse.ArgumentParser()
-    parser.add_argument("--src", default="/home/claude/insdn_raw/InSDN_DatasetCSV",
-                        help="Φάκελος με τα 3 CSV του InSDN")
+    parser.add_argument("--src", default=default_src,
+                        help=f"Φάκελος με τα 3 CSV του InSDN (προεπιλογή: {default_src})")
     args = parser.parse_args()
     main(args.src)

@@ -142,8 +142,28 @@ def main(use_insdn=False):
     joblib.dump(data["label_encoder"], os.path.join(config.MODELS_DIR, "label_encoder.pkl"))
     with open(os.path.join(config.MODELS_DIR, "feature_columns.json"), "w") as f:
         json.dump(data["feature_columns"], f, indent=2)
+    # Καταγράφουμε και το περιβάλλον εκπαίδευσης: τα .pkl είναι δεμένα με την
+    # έκδοση της scikit-learn που τα παρήγαγε (unpickle σε άλλη έκδοση βγάζει
+    # InconsistentVersionWarning).
+    import platform
+    import sklearn
+    import numpy as _np
+    import pandas as _pd
     with open(os.path.join(config.MODELS_DIR, "meta.json"), "w") as f:
-        json.dump({"best_model": best_name, "classes": class_names}, f, indent=2)
+        json.dump({
+            "best_model": best_name,
+            "classes": class_names,
+            "dataset": "InSDN" if use_insdn else "synthetic (default)",
+            "random_state": config.RANDOM_STATE,
+            "test_size": config.TEST_SIZE,
+            "trained_with": {
+                "python": platform.python_version(),
+                "scikit-learn": sklearn.__version__,
+                "numpy": _np.__version__,
+                "pandas": _pd.__version__,
+                "joblib": joblib.__version__,
+            },
+        }, f, indent=2, ensure_ascii=False)
     print(f"[OK] Αποθηκεύτηκαν μοντέλο/scaler/encoder στο: {config.MODELS_DIR}")
 
     # Επιστροφή για χρήση από το evaluate.py

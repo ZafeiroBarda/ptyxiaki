@@ -4,10 +4,30 @@ test_docker_health.py — Docker / infrastructure health tests.
 Run: pytest tests/test_docker_health.py -v
 (Tests are skipped if services are not running)
 """
-import os, sys, subprocess
+import os, sys, shutil, subprocess
 import pytest
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _docker_ready():
+    """True μόνο αν υπάρχει το docker CLI ΚΑΙ ο daemon απαντά.
+
+    Χωρίς τον έλεγχο αυτόν, σε μηχάνημα χωρίς Docker το subprocess.run θα
+    πετούσε FileNotFoundError (δεν επιστρέφει 127), και με σταματημένο daemon
+    οι εντολές αποτυγχάνουν — και στις δύο περιπτώσεις το σωστό είναι skip.
+    """
+    if shutil.which("docker") is None:
+        return False
+    try:
+        r = subprocess.run(["docker", "info"],
+                           capture_output=True, text=True, timeout=20)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+DOCKER_AVAILABLE = _docker_ready()
 
 try:
     import requests as _req
@@ -36,14 +56,13 @@ def test_compose_file_exists():
     assert os.path.exists(path), "docker-compose.yml not found"
 
 
+@pytest.mark.skipif(not DOCKER_AVAILABLE, reason="Docker not installed or daemon not running")
 def test_compose_config_valid():
     compose_path = os.path.join(BASE, "app_sdn", "docker-compose.yml")
     result = subprocess.run(
         ["docker", "compose", "-f", compose_path, "config", "--quiet"],
         capture_output=True, text=True,
     )
-    if result.returncode == 127:
-        pytest.skip("docker compose not available")
     assert result.returncode == 0, \
         f"docker-compose config invalid:\n{result.stderr}"
 
@@ -100,13 +119,12 @@ def test_dashboard_export_flows_endpoint():
 
 # ── Docker container status ───────────────────────────────────────────────────
 
+@pytest.mark.skipif(not DOCKER_AVAILABLE, reason="Docker not installed or daemon not running")
 def test_docker_containers_running():
     result = subprocess.run(
         ["docker", "ps", "--format", "{{.Names}}"],
         capture_output=True, text=True,
     )
-    if result.returncode == 127:
-        pytest.skip("docker not available")
     if not _controller_available:
         pytest.skip("Stack not running")
     containers = result.stdout.strip().split("\n")
