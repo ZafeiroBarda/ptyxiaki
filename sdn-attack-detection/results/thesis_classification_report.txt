@@ -3,12 +3,12 @@ CLASSIFICATION REPORT — Random Forest (InSDN dataset)
 
               precision    recall  f1-score   support
 
-         BFA     0.7910    0.7162    0.7518        74
-        DDoS     0.9989    0.9989    0.9989      6390
-         DoS     0.9868    0.9854    0.9861      2809
-      Normal     0.9762    0.9741    0.9751      3585
-       Probe     0.9855    0.9891    0.9873      5142
+         BFA     0.8438    0.7297    0.7826        74
+        DDoS     0.9983    0.9989    0.9986      6390
+         DoS     0.9841    0.9893    0.9867      2809
+      Normal     0.9793    0.9760    0.9776      3585
+       Probe     0.9876    0.9881    0.9878      5142
 
-    accuracy                         0.9879     18000
-   macro avg     0.9477    0.9327    0.9398     18000
-weighted avg     0.9878    0.9879    0.9878     18000
+    accuracy                         0.9887     18000
+   macro avg     0.9586    0.9364    0.9467     18000
+weighted avg     0.9886    0.9887    0.9886     18000
