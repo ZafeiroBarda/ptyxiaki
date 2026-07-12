@@ -15,6 +15,7 @@ ryu_bridge.py — Ryu/os-ken app που γεφυρώνει το Mininet switch �
 """
 
 import os
+import sys
 import time
 import requests
 
@@ -54,8 +55,14 @@ class RyuBridge(app_manager.RyuApp):
         self.mac_to_port  = {}   # {dpid: {mac: port}}
         self.datapaths    = {}   # {dpid: datapath}
         self.blocked_ips  = set()
-        # ανά παράθυρο: src_ip -> {dsts: set, pkts: int, bytes: int}
+        # ανά παράθυρο: src_ip -> {dsts: set, pkts: int, bytes: int} (fallback)
         self._window      = {}
+        # per-flow στατιστικά από OFPFlowStatsReply: (src,dst) -> {packets,bytes}
+        self._flow_prev   = {}
+        # συναρτήσεις μετασχηματισμού (καθαρές, δοκιμασμένες)
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import flow_telemetry as _ft
+        self._ft = _ft
         self._poll_thread = hub.spawn(self._poll_loop)
 
     # ------------------------------------------------------------------ #
@@ -127,13 +134,23 @@ class RyuBridge(app_manager.RyuApp):
             rec["pkts"]  += 1
             rec["bytes"] += len(msg.data)
 
-        # --- L2 forwarding ---
+        # --- Forwarding ---
         out_port = self.mac_to_port[dpid].get(eth.dst, ofp.OFPP_FLOOD)
         actions  = [parser.OFPActionOutput(out_port)]
         if out_port != ofp.OFPP_FLOOD:
-            match = parser.OFPMatch(in_port=in_port,
-                                    eth_dst=eth.dst, eth_src=eth.src)
-            self._add_flow(dp, 1, match, actions, idle_timeout=20)
+            if ip_pkt is not None:
+                # IP κίνηση: εγκατάσταση κανόνα ανά ζεύγος (nw_src, nw_dst), ώστε
+                # ο πίνακας ροών να συσσωρεύει per-flow στατιστικά (n_packets,
+                # n_bytes, duration) τα οποία αντλούνται μέσω OFPFlowStatsRequest.
+                # Χωρίς αυτό, μετά την εγκατάσταση κανόνων L2 η κίνηση μένει στο
+                # data plane και δεν φτάνει ποτέ στον controller ως Packet-In.
+                match = parser.OFPMatch(eth_type=ether_types.ETH_TYPE_IP,
+                                        ipv4_src=ip_pkt.src, ipv4_dst=ip_pkt.dst)
+                self._add_flow(dp, 2, match, actions, idle_timeout=30)
+            else:
+                match = parser.OFPMatch(in_port=in_port,
+                                        eth_dst=eth.dst, eth_src=eth.src)
+                self._add_flow(dp, 1, match, actions, idle_timeout=20)
 
         data = msg.data if msg.buffer_id == ofp.OFP_NO_BUFFER else None
         dp.send_msg(parser.OFPPacketOut(
@@ -147,7 +164,55 @@ class RyuBridge(app_manager.RyuApp):
         hub.sleep(10)  # αναμονή για τοπολογία
         while True:
             hub.sleep(POLL_INTERVAL)
-            self._flush_window()
+            # Πρωτεύον: ζήτα per-flow στατιστικά από κάθε μεταγωγέα.
+            # Η τηλεμετρία αποστέλλεται στον flow_stats_reply_handler.
+            requested = False
+            for dp in list(self.datapaths.values()):
+                self._request_flow_stats(dp)
+                requested = True
+            # Εφεδρικό: αν δεν υπάρχει ενεργός μεταγωγέας, χρησιμοποίησε τα
+            # στατιστικά Packet-In που συγκεντρώθηκαν στο παράθυρο.
+            if not requested:
+                self._flush_window()
+
+    def _request_flow_stats(self, dp):
+        parser = dp.ofproto_parser
+        dp.send_msg(parser.OFPFlowStatsRequest(dp))
+
+    @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
+    def flow_stats_reply_handler(self, ev):
+        """Χτίζει τηλεμετρία ανά πηγή από τα per-flow στατιστικά του πίνακα ροών.
+
+        Για κάθε καταχώρηση με ipv4_src/ipv4_dst υπολογίζεται η ΔΙΑΦΟΡΑ μετρητών
+        από την προηγούμενη δειγματοληψία, ώστε να προκύψει η κίνηση του
+        τρέχοντος παραθύρου. Έτσι κάθε πηγή αποκτά ΠΟΛΛΑΠΛΕΣ πραγματικές ροές
+        (flow_count > 1) με δικές τους διάρκειες.
+        """
+        stats = []
+        new_prev = dict(self._flow_prev)
+        for st in ev.msg.body:
+            m = st.match
+            src = m.get("ipv4_src")
+            dst = m.get("ipv4_dst")
+            if not src or not dst:
+                continue
+            if src in self.blocked_ips:
+                continue
+            key = (src, dst)
+            prev = self._flow_prev.get(key, {"packets": 0, "bytes": 0})
+            dpk = max(0, st.packet_count - prev["packets"])
+            dby = max(0, st.byte_count - prev["bytes"])
+            new_prev[key] = {"packets": st.packet_count, "bytes": st.byte_count}
+            if dpk > 0:
+                stats.append({"nw_src": src, "packets": dpk, "bytes": dby,
+                              "duration": float(getattr(st, "duration_sec", 0))})
+        self._flow_prev = new_prev
+
+        per_source = self._ft.flowstats_to_telemetry(stats)
+        for src_ip, flows in per_source.items():
+            if sum(f[0] for f in flows) == 0:
+                continue
+            self._send_telemetry(src_ip, flows)
 
     def _flush_window(self):
         snapshot, self._window = self._window, {}

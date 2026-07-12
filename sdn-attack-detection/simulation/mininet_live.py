@@ -120,6 +120,43 @@ def get_ovs_port_stats(bridge="s1"):
         return {}
 
 
+def install_pair_flows(hosts, bridge="s1"):
+    """Εγκαθιστά κανόνες ανά ζεύγος (nw_src, nw_dst) που προωθούν κανονικά.
+
+    Σε λειτουργία standalone ο μεταγωγέας έχει έναν προεπιλεγμένο κανόνα NORMAL,
+    οπότε το dump-flows δίνει έναν μόνο συγκεντρωτικό μετρητή. Προσθέτοντας
+    κανόνες υψηλότερης προτεραιότητας ανά ζεύγος IP (με ενέργεια NORMAL, ώστε η
+    προώθηση να μη μεταβάλλεται), ο πίνακας ροών αποκτά ΞΕΧΩΡΙΣΤΗ καταχώρηση ανά
+    ζεύγος, καθεμία με δικούς της μετρητές n_packets/n_bytes/duration. Έτσι η
+    τηλεμετρία διαβάζει πραγματικές per-flow στατιστικές (OpenFlow flow stats),
+    αντί για μία διαφορά μετρητή θύρας.
+    """
+    ips = [h.IP() for h in hosts.values()]
+    n = 0
+    for s in ips:
+        for d in ips:
+            if s == d:
+                continue
+            r = subprocess.run(
+                ["ovs-ofctl", "add-flow", bridge,
+                 f"priority=10,ip,nw_src={s},nw_dst={d},actions=normal"],
+                capture_output=True, text=True,
+            )
+            if r.returncode == 0:
+                n += 1
+    print(f"[OVS]  Εγκαταστάθηκαν {n} κανόνες ροής ανά ζεύγος (per-flow stats)", flush=True)
+
+
+def get_ovs_flow_stats(bridge="s1"):
+    """Επιστρέφει την ακατέργαστη έξοδο του ovs-ofctl dump-flows (per-flow)."""
+    try:
+        r = subprocess.run(["ovs-ofctl", "dump-flows", bridge],
+                           capture_output=True, text=True, timeout=5)
+        return r.stdout
+    except Exception:
+        return ""
+
+
 def read_iface_rx(iface):
     """Fallback: read rx_packets + rx_bytes from /sys/class/net."""
     try:
@@ -205,20 +242,65 @@ def sim_control_loop(hosts, stop_event):
             active_attackers.clear()
 
 
+def _submit_telemetry(src_ip, victim_ip, flows, drop_state):
+    """Στέλνει μία λίστα ροών μιας πηγής στον controller και εφαρμόζει DROP."""
+    try:
+        resp = requests.post(
+            f"{CONTROLLER_URL}/telemetry",
+            json={"src": src_ip, "dst": victim_ip, "flows": flows},
+            headers=_SWITCH_HEADERS, timeout=3,
+        )
+        result = resp.json()
+    except Exception as e:
+        print(f"[TELEM] Error ({src_ip}): {e}", flush=True)
+        return
+    verdict = result.get("verdict", "Normal")
+    action  = result.get("action", "FORWARD")
+    total_pkts = sum(f[0] for f in flows)
+    print(f"[TELEM] {src_ip:12s}  flows={len(flows):3d}  pkts={total_pkts:6d}"
+          f"  verdict={verdict}  action={action}", flush=True)
+    if verdict == "Attack" and src_ip not in drop_state["installed"]:
+        drop_state["installed"].add(src_ip)
+        install_drop_flow(src_ip)
+
+
 def telemetry_loop(port_to_ip, victim_ip, stop_event, drop_state,
                    interval=TELEM_INTERVAL):
     """
     Background thread — runs across all cycles until stop_event is set.
     drop_state is a shared mutable dict {"installed": set()} so the main
     thread can clear it between cycles without restarting the thread.
+
+    ΠΡΩΤΕΥΟΝ ΜΟΝΟΠΑΤΙ: per-flow στατιστικά από τον πίνακα ροών (dump-flows),
+    ώστε κάθε πηγή να στέλνει ΠΟΛΛΑΠΛΕΣ πραγματικές ροές (flow_count > 1) με
+    δικές τους διάρκειες. ΕΦΕΔΡΙΚΟ: αν ο πίνακας ροών δεν έχει ακόμη per-flow
+    καταχωρήσεις (π.χ. πριν εγκατασταθούν οι κανόνες ζεύγους), χρησιμοποιείται
+    η παλαιότερη προσέγγιση διαφοράς μετρητή θύρας.
     """
-    prev = {p: {"packets": 0, "bytes": 0} for p in port_to_ip}
+    import flow_telemetry as ft
+
+    prev_flows = {}   # (nw_src, nw_dst) -> {"packets","bytes"} για per-flow deltas
+    prev_port = {p: {"packets": 0, "bytes": 0} for p in port_to_ip}
 
     while not stop_event.is_set():
         stop_event.wait(timeout=interval)
         if stop_event.is_set():
             break
 
+        # ── Πρωτεύον: per-flow τηλεμετρία ────────────────────────────────────
+        dump = get_ovs_flow_stats()
+        parsed = ft.parse_ofctl_flows(dump) if dump else []
+        if parsed:
+            per_source, prev_flows = ft.window_deltas(parsed, prev_flows)
+            for src_ip, flows in per_source.items():
+                if src_ip == victim_ip:            # αγνόησε την κίνηση-απάντηση
+                    continue
+                if sum(f[0] for f in flows) < 4:    # αγνόησε micro-flows
+                    continue
+                _submit_telemetry(src_ip, victim_ip, flows, drop_state)
+            continue
+
+        # ── Εφεδρικό: διαφορά μετρητή θύρας (μία συγκεντρωτική ροή) ──────────
         curr = get_ovs_port_stats()
         if not curr:
             for port in port_to_ip:
@@ -228,37 +310,15 @@ def telemetry_loop(port_to_ip, victim_ip, stop_event, drop_state,
         for port, src_ip in port_to_ip.items():
             if port not in curr:
                 continue
-            if src_ip == victim_ip:       # skip victim's response traffic
-                prev[port] = curr[port]
+            if src_ip == victim_ip:
+                prev_port[port] = curr[port]
                 continue
-            dpkts  = max(0, curr[port]["packets"] - prev[port]["packets"])
-            dbytes = max(0, curr[port]["bytes"]   - prev[port]["bytes"])
-            prev[port] = curr[port]
-
-            if dpkts < 4:                 # skip micro-flows
+            dpkts  = max(0, curr[port]["packets"] - prev_port[port]["packets"])
+            dbytes = max(0, curr[port]["bytes"]   - prev_port[port]["bytes"])
+            prev_port[port] = curr[port]
+            if dpkts < 4:
                 continue
-
-            try:
-                resp = requests.post(
-                    f"{CONTROLLER_URL}/telemetry",
-                    json={"src": src_ip, "dst": victim_ip,
-                          "flows": [[dpkts, dbytes, interval]]},
-                    headers=_SWITCH_HEADERS,
-                    timeout=3,
-                )
-                result = resp.json()
-            except Exception as e:
-                print(f"[TELEM] Error ({src_ip}): {e}", flush=True)
-                continue
-
-            verdict = result.get("verdict", "Normal")
-            action  = result.get("action", "FORWARD")
-            print(f"[TELEM] {src_ip:12s}  pkts={dpkts:6d}  bytes={dbytes:8d}"
-                  f"  verdict={verdict}  action={action}", flush=True)
-
-            if verdict == "Attack" and src_ip not in drop_state["installed"]:
-                drop_state["installed"].add(src_ip)
-                install_drop_flow(src_ip)
+            _submit_telemetry(src_ip, victim_ip, [[dpkts, dbytes, interval]], drop_state)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -305,9 +365,10 @@ def main():
     print(f"[LIVE] h1-h4 legit | h5={victim_ip} victim | "
           f"h6={attacker_ip} attacker", flush=True)
 
-    # ── 3. Register hosts ───────────────────────────────────────────────────
+    # ── 3. Register hosts + εγκατάσταση κανόνων ροής ανά ζεύγος ──────────────
     for name, h in hosts.items():
         register_host(name, h.IP())
+    install_pair_flows(hosts)   # ώστε το dump-flows να δίνει per-flow στατιστικά
     print("[LIVE] Hosts registered.\n", flush=True)
 
     # ── 4. Start telemetry + sim-control threads ────────────────────────────
@@ -399,10 +460,12 @@ def main():
                               headers=_ADMIN_HEADERS, timeout=3)
             except Exception:
                 pass
-            # Remove OVS DROP flow so the attacker can flood again next cycle
+            # Remove ONLY the priority-100 DROP flow so the attacker can flood
+            # again next cycle. --strict + priority keeps the priority-10
+            # per-pair NORMAL flows intact (needed for per-flow telemetry).
             subprocess.run(
-                ["ovs-ofctl", "del-flows", "s1",
-                 f"ip,nw_src={attacker_ip}"],
+                ["ovs-ofctl", "--strict", "del-flows", "s1",
+                 f"priority=100,ip,nw_src={attacker_ip}"],
                 capture_output=True,
             )
             drop_state["installed"].clear()   # telemetry thread can re-detect
