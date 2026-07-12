@@ -33,6 +33,8 @@ LOOP_CYCLES     = int(os.environ.get("LOOP_CYCLES",     "0"))   # 0 = infinite
 TELEM_INTERVAL  = 2
 
 _SWITCH_HEADERS = {"X-Switch-Token": SWITCH_API_KEY}
+ADMIN_API_KEY   = os.environ.get("ADMIN_API_KEY", "sdn-admin-2024")
+_ADMIN_HEADERS  = {"X-Admin-Token": ADMIN_API_KEY}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -50,7 +52,8 @@ def wait_for_flask(timeout=90):
                       f"{info.get('defense_engine', '?')}", flush=True)
                 # Clear any state from previous runs
                 try:
-                    requests.post(f"{CONTROLLER_URL}/reset", timeout=3)
+                    requests.post(f"{CONTROLLER_URL}/reset",
+                                  headers=_ADMIN_HEADERS, timeout=3)
                     print("[LIVE] Controller state reset.", flush=True)
                 except Exception:
                     pass
@@ -391,7 +394,8 @@ def main():
             print(f"[LIVE] Recovery ({RECOVERY_PHASE}s) — "
                   f"clearing DROP rules for next cycle...", flush=True)
             try:
-                requests.post(f"{CONTROLLER_URL}/unblock", timeout=3)
+                requests.post(f"{CONTROLLER_URL}/unblock",
+                              headers=_ADMIN_HEADERS, timeout=3)
             except Exception:
                 pass
             # Remove OVS DROP flow so the attacker can flood again next cycle

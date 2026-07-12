@@ -153,3 +153,22 @@ def test_reset_clears_injection_stats(client):
     stats = client.get("/injection_stats").get_json()
     assert stats["attempts"] == 0
     assert stats["blocked"] == 0
+
+
+# ── /reset: admin-only σε DEFENSE_MODE ───────────────────────────────────────
+
+def test_defense_mode_reset_requires_admin_token(client, monkeypatch):
+    monkeypatch.setattr(ctrl, "DEFENSE_MODE", True)
+    r = client.post("/reset", headers=AUTH)   # switch token δεν αρκεί
+    assert r.status_code == 401
+    r = client.post("/reset")                 # χωρίς κανένα token
+    assert r.status_code == 401
+
+
+def test_defense_mode_reset_with_admin_token(client, monkeypatch):
+    monkeypatch.setattr(ctrl, "DEFENSE_MODE", True)
+    r = client.post("/reset",
+                    headers={"X-Admin-Token": "sdn-admin-2024",
+                             "Content-Type": "application/json"})
+    assert r.status_code == 200
+    assert r.get_json()["status"] == "reset"

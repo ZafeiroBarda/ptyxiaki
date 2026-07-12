@@ -448,7 +448,12 @@ def unblock():
 
 
 @app.route("/reset", methods=["POST"])
-def reset():  # Admin-only in DEFENSE_MODE
+def reset():
+    """Full state reset. Admin-only in DEFENSE_MODE."""
+    if DEFENSE_MODE:
+        token = request.headers.get("X-Admin-Token", "")
+        if token != ADMIN_API_KEY:
+            return jsonify({"error": "Unauthorized: X-Admin-Token required"}), 401
     global _metrics_t0
     gnv.nodes.clear(); gnv.flows.clear()
     flow_table.rules.clear(); _log.clear()

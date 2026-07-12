@@ -20,6 +20,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 CONTROLLER="http://localhost:9000"
+ADMIN_TOKEN="${ADMIN_API_KEY:-sdn-admin-2024}"
 DURATION=60
 for arg in "$@"; do
     [[ "$arg" == --controller=* ]] && CONTROLLER="${arg#*=}"
@@ -56,7 +57,7 @@ run_scenario() {
     echo "─────────────────────────────────────────────────────────────────────"
 
     # Reset controller state
-    curl -sf -X POST "$CONTROLLER/reset" > /dev/null 2>&1 || true
+    curl -sf -X POST "$CONTROLLER/reset" -H "X-Admin-Token: $ADMIN_TOKEN" > /dev/null 2>&1 || true
     sleep 2
 
     # Run scenario (scenarios save CSVs themselves to results/live/)
@@ -76,7 +77,7 @@ run_scenario() {
 # ── DDoS / SYN Flood ─────────────────────────────────────────────────────────
 echo ""
 echo "[1/7] DDoS — SYN Flood"
-curl -sf -X POST "$CONTROLLER/reset" > /dev/null 2>&1 || true
+curl -sf -X POST "$CONTROLLER/reset" -H "X-Admin-Token: $ADMIN_TOKEN" > /dev/null 2>&1 || true
 sleep 2
 
 python3 - <<PYEOF
@@ -236,7 +237,8 @@ headers     = {"X-Switch-Token": "sdn-secret-2024", "Content-Type": "application
 
 # Reset and send only legitimate traffic, check for false positives
 try:
-    requests.post(f"{controller}/reset", timeout=2)
+    requests.post(f"{controller}/reset",
+                  headers={"X-Admin-Token": "sdn-admin-2024"}, timeout=2)
     time.sleep(1)
 
     for _ in range(10):

@@ -21,7 +21,8 @@ services:
     command: python3 app_sdn/controller.py
     environment:
       - SWITCH_API_KEY=sdn-secret-2024
-      - DEFENSE_MODE=0          # 1 για να ενεργοποιηθεί η άμυνα injection
+      - ADMIN_API_KEY=sdn-admin-2024
+      - DEFENSE_MODE=1          # ενεργή άμυνα: telemetry χωρίς έγκυρο token -> 401
     ports:
       - "9000:9000"          # REST API (southbound)
     networks: [sdn_net]
@@ -54,6 +55,7 @@ services:
     command: python3 app_sdn/switch.py --id s1 --controller http://controller:9000 --port 8000
     environment:
       - SWITCH_API_KEY=sdn-secret-2024
+      - ADMIN_API_KEY=sdn-admin-2024
     depends_on:
       controller:
         condition: service_healthy
@@ -77,6 +79,7 @@ services:
     environment:
       - CONTROLLER_URL=http://controller:9000
       - SWITCH_API_KEY=sdn-secret-2024
+      - ADMIN_API_KEY=sdn-admin-2024
       - NORMAL_PHASE=30
       - ATTACK_PHASE=30
       - RECOVERY_PHASE=20
@@ -113,6 +116,7 @@ services:
     environment:
       - CONTROLLER_URL=http://controller:9000
       - SWITCH_API_KEY=sdn-secret-2024
+      - ADMIN_API_KEY=sdn-admin-2024
       - NORMAL_PHASE=30
       - ATTACK_PHASE=30
       - RECOVERY_PHASE=20

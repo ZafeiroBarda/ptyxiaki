@@ -6,3 +6,13 @@ __pycache__/
 _gittest*.txt
 delete_test_inside.txt
 {data,ml_pipeline,simulation,controller,results,docs}
+
+# Backups / προσωρινά docx (μόνο τοπικά)
+docs/*BACKUP*.docx
+docs/*USEREDIT*.docx
+docs/~$*.docx
+verify_results/
+
+# Τοπικές ρυθμίσεις εργαλείων & live runtime output
+.claude/
+data/live_mininet_flows.csv

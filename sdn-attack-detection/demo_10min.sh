@@ -23,6 +23,7 @@ BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
 # ── Config ────────────────────────────────────────────────────────────────────
 CONTROLLER="http://localhost:9000"
+ADMIN_TOKEN="${ADMIN_API_KEY:-sdn-admin-2024}"
 DASHBOARD="http://localhost:8050"
 ATTACK_TYPE="syn"
 NO_BUILD=0
@@ -99,7 +100,7 @@ ok "Stack starting..."
 wait_for_controller
 
 # Reset state
-curl -sf -X POST "$CONTROLLER/reset" > /dev/null 2>&1 || true
+curl -sf -X POST "$CONTROLLER/reset" -H "X-Admin-Token: $ADMIN_TOKEN" > /dev/null 2>&1 || true
 ok "Controller state reset"
 
 echo -e "\n  ${BOLD}Dashboard: ${CYAN}$DASHBOARD${NC}"

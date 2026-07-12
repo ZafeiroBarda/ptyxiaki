@@ -210,7 +210,60 @@ python3 controller/train_live_model.py --collected
 
 ---
 
-## 5. Ηθική / νομική σημείωση
+## 5. Ασφάλεια του demo (tokens & DEFENSE_MODE)
+
+Ο controller προστατεύεται με δύο tokens και rate limiting:
+
+| Μεταβλητή | Προεπιλογή (demo) | Ρόλος |
+|---|---|---|
+| `SWITCH_API_KEY` | `sdn-secret-2024` | Header `X-Switch-Token` για `/telemetry` |
+| `ADMIN_API_KEY` | `sdn-admin-2024` | Header `X-Admin-Token` για `/reset`, `/unblock` |
+| `DEFENSE_MODE` | `1` (ενεργό στο compose) | `1` → telemetry χωρίς έγκυρο token απορρίπτεται με 401· `0` → καταγράφεται μόνο ως injection attempt |
+
+> ⚠️ Οι παραπάνω τιμές είναι **demo defaults** για το απομονωμένο εργαστήριο.
+> Σε οποιαδήποτε πραγματική χρήση πρέπει να ορίζονται ισχυρά, μυστικά tokens
+> μέσω environment variables (ή secrets manager) — ποτέ hardcoded στον κώδικα.
+
+---
+
+## 6. Επίσημα αποτελέσματα — αντιστοίχιση με το κείμενο της διπλωματικής
+
+Ο φάκελος `results/` περιέχει και βοηθητικά/εξερευνητικά αρχεία. Τα αρχεία
+που αντιστοιχούν **στους πίνακες και τα σχήματα του κειμένου** είναι:
+
+| Στοιχείο κειμένου | Αρχείο | Παράγεται από |
+|---|---|---|
+| Πίνακας 9 (σύγκριση, συνθετικό) | `results/model_comparison.csv` | `ml_pipeline/evaluate.py` |
+| Πίνακας 10 (5-fold CV) | `results/cross_validation.csv` | `ml_pipeline/advanced_eval.py` |
+| Πίνακας 12 (σύγκριση, InSDN) | `results/model_comparison_insdn.csv` | `ml_pipeline/evaluate.py --insdn` |
+| Πίνακας 13 (Isolation Forest, συνθετικό) | `results/isolation_forest_metrics.csv` | `ml_pipeline/isolation_forest_detector.py` |
+| Isolation Forest στο InSDN | `results/isolation_forest_metrics_insdn.csv` | `ml_pipeline/isolation_forest_detector.py --insdn` |
+| Παράρτημα Β (IF tuning) | `results/isolation_forest_tuning.csv` | `ml_pipeline/hyperparameter_tuning.py` |
+| Adversarial (Original vs Robust RF) | `results/adv_robust_*.csv` | `ml_pipeline/adversarial_training.py` |
+| Σχήματα IF confusion/ROC/scores | `results/thesis_if_*.png` | `ml_pipeline/thesis_eval.py` (stratified subsample 60k του InSDN) |
+| Live σενάρια | `results/live/*.csv` | `run_live_experiments.sh` |
+
+Σημείωση: στο πλήρες InSDN ο KNN πετυχαίνει οριακά υψηλότερο macro-F1 (0,952)
+από το Random Forest (0,945), αλλά με χρόνο πρόβλεψης ~150× μεγαλύτερο· το
+κείμενο το αναφέρει ρητά και εξηγεί γιατί το Random Forest παραμένει η
+πρακτικά προτιμότερη επιλογή. Το `results/thesis_comparison.csv` προέρχεται
+από το subsampled setup του `thesis_eval.py` και είναι **συμπληρωματικό** —
+δεν είναι η πηγή του Πίνακα 12.
+
+---
+
+## 7. Ρόλος του φακέλου `controller/`
+
+Η **τελική αρχιτεκτονική** της διπλωματικής είναι το υβριδικό μοντέλο
+Flask + OVS του `app_sdn/` (application-level SDN). Ο φάκελος `controller/`
+(Ryu `detection_controller.py`, POX `pox_detection.py`) τεκμηριώνει την
+εναλλακτική/κλασική διαδρομή με OpenFlow controller, η οποία εξετάστηκε και
+περιγράφεται στο κείμενο ως σχεδιαστικός συμβιβασμός — δεν αποτελεί την κύρια
+υλοποίηση.
+
+---
+
+## 8. Ηθική / νομική σημείωση
 Τα εργαλεία επιθέσεων (`hping3`, `nmap`) χρησιμοποιούνται **αποκλειστικά** μέσα
 στο απομονωμένο εικονικό εργαστήριο Mininet, ως μέρος **αμυντικής** έρευνας.
 Δεν επιτρέπεται η χρήση τους σε πραγματικά δίκτυα ή συστήματα χωρίς ρητή άδεια.

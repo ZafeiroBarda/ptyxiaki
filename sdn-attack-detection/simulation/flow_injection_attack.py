@@ -27,6 +27,8 @@ import json
 import requests
 
 CONTROLLER_URL  = os.environ.get("CONTROLLER_URL",  "http://localhost:9000")
+ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "sdn-admin-2024")
+_ADMIN_HEADERS = {"X-Admin-Token": ADMIN_API_KEY}
 SWITCH_API_KEY  = os.environ.get("SWITCH_API_KEY",  "sdn-secret-2024")  # το γνωρίζει μόνο ο νόμιμος switch
 LEGITIMATE_HOST = "10.0.0.1"   # ο νόμιμος χρήστης που θα «πλαστογραφηθεί»
 VICTIM_HOST     = "10.0.0.5"   # ο υποτιθέμενος στόχος της «επίθεσης»
@@ -166,7 +168,7 @@ def main():
 
     # Καθάρισε προηγούμενη κατάσταση
     try:
-        requests.post(f"{CONTROLLER_URL}/reset", timeout=3)
+        requests.post(f"{CONTROLLER_URL}/reset", headers=_ADMIN_HEADERS, timeout=3)
         print("[OK] Controller state reset.")
     except Exception:
         pass

@@ -26,6 +26,8 @@ import requests
 
 CONTROLLER_URL  = os.environ.get("CONTROLLER_URL",  "http://controller:9000")
 SWITCH_API_KEY  = os.environ.get("SWITCH_API_KEY",  "sdn-secret-2024")
+ADMIN_API_KEY   = os.environ.get("ADMIN_API_KEY",   "sdn-admin-2024")
+_ADMIN_HEADERS  = {"X-Admin-Token": ADMIN_API_KEY}
 NORMAL_PHASE    = int(os.environ.get("NORMAL_PHASE",    "30"))
 ATTACK_PHASE    = int(os.environ.get("ATTACK_PHASE",    "30"))
 RECOVERY_PHASE  = int(os.environ.get("RECOVERY_PHASE",  "20"))
@@ -50,7 +52,8 @@ def wait_for_flask(timeout=90):
                 print(f"[RYU-MODE] Controller OK — Defense Engine: "
                       f"{info.get('defense_engine', '?')}", flush=True)
                 try:
-                    requests.post(f"{CONTROLLER_URL}/reset", timeout=3)
+                    requests.post(f"{CONTROLLER_URL}/reset",
+                                  headers=_ADMIN_HEADERS, timeout=3)
                     print("[RYU-MODE] Controller state reset.", flush=True)
                 except Exception:
                     pass
@@ -248,7 +251,8 @@ def main():
             # ── Recovery ──────────────────────────────────────────────────────
             print(f"[RYU-MODE] Recovery ({RECOVERY_PHASE}s)...", flush=True)
             try:
-                requests.post(f"{CONTROLLER_URL}/unblock", timeout=3)
+                requests.post(f"{CONTROLLER_URL}/unblock",
+                              headers=_ADMIN_HEADERS, timeout=3)
             except Exception:
                 pass
             time.sleep(RECOVERY_PHASE)

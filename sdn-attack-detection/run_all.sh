@@ -37,7 +37,12 @@ echo ""
 echo "==================================================================="
 echo " ΒΗΜΑ 3/6 — Deep Learning (MLP + 1D-CNN)"
 echo "==================================================================="
-python3 ml_pipeline/deep_learning.py $INSDN_FLAG --epochs 30
+if python3 -c "import tensorflow" 2>/dev/null; then
+    python3 ml_pipeline/deep_learning.py $INSDN_FLAG --epochs 30
+else
+    echo ">>> tensorflow not installed — παράλειψη Deep Learning"
+    echo ">>> (προαιρετική εγκατάσταση: pip install tensorflow)"
+fi
 
 echo ""
 echo "==================================================================="
@@ -68,6 +73,12 @@ else
     echo ">>> xgboost not installed — τρέχω thesis_eval.py αντί"
     python3 ml_pipeline/thesis_eval.py $INSDN_FLAG
 fi
+
+echo ""
+echo "==================================================================="
+echo " ΒΗΜΑ 8/8 — Adversarial training (Original vs Robust RF)"
+echo "==================================================================="
+python3 ml_pipeline/adversarial_training.py
 
 echo ""
 echo "==================================================================="

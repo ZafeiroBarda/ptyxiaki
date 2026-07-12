@@ -1,4 +1,11 @@
-# --- ML pipeline (μέθοδος Β) ---
+# ============================================================================
+# Πλήρες requirements — καλύπτει ML pipeline, live app (Flask/Dash) και tests.
+#   pip install -r requirements.txt
+#   bash run_all.sh
+#   pytest tests/ -v
+# ============================================================================
+
+# --- ML pipeline (Μέθοδος Β) ---
 scikit-learn>=1.3
 pandas>=2.0
 numpy>=1.24
@@ -6,19 +13,34 @@ matplotlib>=3.7
 seaborn>=0.12
 joblib>=1.3
 
-# --- Extended ML (optional — extended_eval.py) ---
-# Εγκατάσταση: pip install xgboost lightgbm
-# Αν δεν εγκατασταθούν, το extended_eval.py χρησιμοποιεί sklearn fallbacks.
-xgboost>=1.7; sys_platform != "win32" or python_version >= "3.8"
-lightgbm>=3.3; sys_platform != "win32" or python_version >= "3.8"
+# --- Ερμηνευσιμότητα (shap_analysis.py) ---
+shap>=0.44
 
-# --- Live SDN controller (μέθοδος Α) ---
-# Ο Ryu εγκαθίσταται ξεχωριστά γιατί απαιτεί συγκεκριμένες εκδόσεις Python.
-# Επίσημος Ryu:        pip install ryu
-# Συντηρούμενο fork:   pip install os-ken
-#   (αν χρησιμοποιήσεις os-ken, άλλαξε τα imports 'ryu.' -> 'os_ken.')
+# --- Extended ML (extended_eval.py — με sklearn fallbacks αν λείπουν) ---
+xgboost>=1.7
+lightgbm>=3.3
+
+# --- Live εφαρμογή: controller + dashboard (Μέθοδος Α, app_sdn/) ---
+flask>=2.3
+dash>=2.14
+plotly>=5.18
+requests>=2.31
+
+# --- Tests ---
+pytest>=7.4
+
+# ============================================================================
+# ΠΡΟΑΙΡΕΤΙΚΑ (δεν εγκαθίστανται αυτόματα):
 #
-# Mininet: ΔΕΝ εγκαθίσταται με pip — εγκατάσταση σε επίπεδο συστήματος (Linux):
+# Deep Learning (deep_learning.py — MLP/1D-CNN):
+#   pip install tensorflow>=2.15
+#   Αν λείπει, το run_all.sh παραλείπει το βήμα Deep Learning με μήνυμα.
+#
+# SDN controller (εναλλακτική υλοποίηση controller/ με Ryu/POX):
+#   pip install ryu           # ή το συντηρούμενο fork: pip install os-ken
+#   (με os-ken άλλαξε τα imports 'ryu.' -> 'os_ken.')
+#
+# Mininet (live προσομοίωση, μόνο Linux — ΟΧΙ pip):
 #   sudo apt update && sudo apt install mininet
-# Εργαλεία επιθέσεων (μέσα στο εργαστηριακό VM):
-#   sudo apt install hping3 nmap iperf
+#   sudo apt install hping3 nmap iperf   # εργαλεία επιθέσεων στο lab VM
+# ============================================================================

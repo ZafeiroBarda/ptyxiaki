@@ -71,11 +71,13 @@ def load_insdn():
 def prepare(df, subsample=SUBSAMPLE):
     feat_cols = [c for c in config.FEATURE_COLUMNS if c in df.columns]
 
-    # Stratified subsample
+    # Stratified subsample (groupby().sample κρατά όλες τις στήλες σε κάθε
+    # έκδοση pandas, σε αντίθεση με το groupby().apply που στο pandas 3.x
+    # αφαιρεί τη στήλη ομαδοποίησης)
     if subsample and subsample < len(df):
         frac = subsample / len(df)
-        df = df.groupby("Label", group_keys=False).apply(
-            lambda g: g.sample(frac=frac, random_state=config.RANDOM_STATE)
+        df = df.groupby("Label", group_keys=False).sample(
+            frac=frac, random_state=config.RANDOM_STATE
         ).reset_index(drop=True)
 
     X = df[feat_cols].astype(float).values
