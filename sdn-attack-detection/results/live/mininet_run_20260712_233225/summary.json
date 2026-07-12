@@ -1,0 +1,10 @@
+{
+  "run_id": "mininet_run_20260712_233225",
+  "timestamp": "2026-07-12T23:32:25.920143",
+  "topology": "Mininet 6 hosts + OVS s1 (userspace, standalone)",
+  "attack_tool": "hping3 --syn --flood",
+  "telemetry_source": "ovs-ofctl dump-flows (per-flow), install_pair_flows()",
+  "per_pair_flow_rules_installed": 30,
+  "evidence_perflow_counters": true,
+  "note": "Επαλήθευση per-flow τηλεμετρίας (4.10/4.11): ο πίνακας ροών δίνει ξεχωριστούς μετρητές ανά (nw_src,nw_dst)."
+}
