@@ -56,18 +56,41 @@ def tune_isolation_forest(use_insdn=False):
     X = df[feats].astype(float).values
     y = (df[config.LABEL_COL] != "Normal").astype(int).values
 
-    # εκπαίδευση ΜΟΝΟ σε φυσιολογικά (unsupervised)
+    # Εκπαίδευση ΜΟΝΟ σε φυσιολογική κίνηση (μη επιβλεπόμενο).
+    #
+    # ΔΙΟΡΘΩΣΗ ΜΕΘΟΔΟΛΟΓΙΑΣ: παλαιότερα και οι 108 διαμορφώσεις αξιολογούνταν στο
+    # ΙΔΙΟ σύνολο, από το οποίο επιλεγόταν και η καλύτερη. Αυτό είναι
+    # υπερπροσαρμογή των υπερπαραμέτρων στο test set. Εδώ χωρίζουμε σε δύο
+    # ανεξάρτητα σύνολα: η επιλογή γίνεται στο VALIDATION και η τελική τιμή που
+    # αναφέρεται μετριέται μία φορά στο TEST, το οποίο δεν συμμετέχει στην
+    # αναζήτηση.
     X_normal = X[y == 0]
+    X_attack = X[y == 1]
+
     rng = np.random.default_rng(config.RANDOM_STATE)
-    perm = rng.permutation(len(X_normal))
-    n_train = int(len(X_normal) * 0.6)
-    Xtr = X_normal[perm[:n_train]]
-    # test = υπόλοιπα normal + όλες οι επιθέσεις
-    X_test = np.vstack([X_normal[perm[n_train:]], X[y == 1]])
-    y_test = np.concatenate([np.zeros(len(perm) - n_train), np.ones((y == 1).sum())])
+    permn = rng.permutation(len(X_normal))
+    perma = rng.permutation(len(X_attack))
+
+    n_tr = int(len(X_normal) * 0.60)                     # 60% normal -> εκπαίδευση
+    n_va = int(len(X_normal) * 0.20)                     # 20% normal -> validation
+    Xtr = X_normal[permn[:n_tr]]                         # (μόνο normal)
+    norm_va = X_normal[permn[n_tr:n_tr + n_va]]
+    norm_te = X_normal[permn[n_tr + n_va:]]
+
+    a_half = len(X_attack) // 2                          # επιθέσεις: 50/50 val/test
+    atk_va = X_attack[perma[:a_half]]
+    atk_te = X_attack[perma[a_half:]]
+
+    X_val = np.vstack([norm_va, atk_va])
+    y_val = np.concatenate([np.zeros(len(norm_va)), np.ones(len(atk_va))])
+    X_test = np.vstack([norm_te, atk_te])
+    y_test = np.concatenate([np.zeros(len(norm_te)), np.ones(len(atk_te))])
 
     scaler = StandardScaler().fit(Xtr)
-    Xtr_s, Xte_s = scaler.transform(Xtr), scaler.transform(X_test)
+    Xtr_s = scaler.transform(Xtr)
+    Xva_s = scaler.transform(X_val)
+    Xte_s = scaler.transform(X_test)
+    print(f"[*] train(normal)={len(Xtr)} | validation={len(y_val)} | test={len(y_test)}")
 
     # ----- πλέγμα υπερπαραμέτρων -----
     grid = {
@@ -86,31 +109,47 @@ def tune_isolation_forest(use_insdn=False):
         params = dict(zip(keys, combo))
         iso = IsolationForest(random_state=config.RANDOM_STATE, n_jobs=-1, **params)
         iso.fit(Xtr_s)
-        scores = -iso.decision_function(Xte_s)     # μεγαλύτερο = πιο ανώμαλο
-        y_pred = (iso.predict(Xte_s) == -1).astype(int)
-        auc = roc_auc_score(y_test, scores)
-        f1 = f1_score(y_test, y_pred, zero_division=0)
-        rows.append({**params, "roc_auc": auc, "f1": f1})
+        # ΕΠΙΛΟΓΗ: αποκλειστικά στο validation set
+        val_scores = -iso.decision_function(Xva_s)      # μεγαλύτερο = πιο ανώμαλο
+        val_pred = (iso.predict(Xva_s) == -1).astype(int)
+        rows.append({**params,
+                     "val_roc_auc": roc_auc_score(y_val, val_scores),
+                     "val_f1": f1_score(y_val, val_pred, zero_division=0)})
         if i % 12 == 0 or i == len(combos):
             el = time.perf_counter() - t0
-            print(f"    {i:3d}/{len(combos)} | best AUC ως τώρα: "
-                  f"{max(r['roc_auc'] for r in rows):.4f} | {el:.0f}s")
+            print(f"    {i:3d}/{len(combos)} | best val AUC ως τώρα: "
+                  f"{max(r['val_roc_auc'] for r in rows):.4f} | {el:.0f}s")
 
-    res = pd.DataFrame(rows).sort_values("roc_auc", ascending=False).reset_index(drop=True)
-    res.to_csv(os.path.join(config.RESULTS_DIR, "isolation_forest_tuning.csv"), index=False)
+    res = (pd.DataFrame(rows)
+           .sort_values("val_roc_auc", ascending=False)
+           .reset_index(drop=True))
 
     best = res.iloc[0]
-    print("\n--- ΚΑΛΥΤΕΡΗ ΔΙΑΜΟΡΦΩΣΗ ISOLATION FOREST ---")
+    print("\n--- ΚΑΛΥΤΕΡΗ ΔΙΑΜΟΡΦΩΣΗ (κατά validation ROC-AUC) ---")
     print(best.to_string())
 
-    # ξανα-εκπαίδευσε & αποθήκευσε το βέλτιστο
-    best_params = {k: best[k] for k in keys}
-    # καθάρισμα τύπων
-    best_params["n_estimators"] = int(best_params["n_estimators"])
-    if best_params["max_samples"] != "auto":
-        best_params["max_samples"] = int(best_params["max_samples"])
-    best_iso = IsolationForest(random_state=config.RANDOM_STATE, n_jobs=-1, **best_params)
-    best_iso.fit(Xtr_s)
+    # ΤΕΛΙΚΗ ΑΞΙΟΛΟΓΗΣΗ: μία και μοναδική φορά, στο ανεξάρτητο test set
+    bp = {k: best[k] for k in keys}
+    bp["n_estimators"] = int(bp["n_estimators"])
+    if bp["max_samples"] != "auto":
+        bp["max_samples"] = int(bp["max_samples"])
+    final_iso = IsolationForest(random_state=config.RANDOM_STATE, n_jobs=-1, **bp).fit(Xtr_s)
+    te_scores = -final_iso.decision_function(Xte_s)
+    te_pred = (final_iso.predict(Xte_s) == -1).astype(int)
+    test_auc = roc_auc_score(y_test, te_scores)
+    test_f1 = f1_score(y_test, te_pred, zero_division=0)
+    print(f"\n--- ΤΕΛΙΚΗ ΑΞΙΟΛΟΓΗΣΗ ΣΤΟ ΑΝΕΞΑΡΤΗΤΟ TEST SET ---")
+    print(f"    ROC-AUC = {test_auc:.4f} | F1 = {test_f1:.4f}")
+    print(f"    (validation ROC-AUC της ίδιας διαμόρφωσης: {best['val_roc_auc']:.4f})")
+
+    res["test_roc_auc"] = ""
+    res.loc[0, "test_roc_auc"] = round(test_auc, 4)
+    res["test_f1"] = ""
+    res.loc[0, "test_f1"] = round(test_f1, 4)
+    res.to_csv(os.path.join(config.RESULTS_DIR, "isolation_forest_tuning.csv"), index=False)
+
+    # Αποθήκευση του μοντέλου της βέλτιστης (κατά validation) διαμόρφωσης
+    best_iso = final_iso
     joblib.dump(best_iso, os.path.join(config.MODELS_DIR, "isolation_forest_best.pkl"))
     joblib.dump(scaler, os.path.join(config.MODELS_DIR, "isolation_forest_best_scaler.pkl"))
     print("\n[OK] models/isolation_forest_best.pkl")
@@ -122,12 +161,12 @@ def tune_isolation_forest(use_insdn=False):
 def _plot_iso_tuning(res):
     fig, axes = plt.subplots(1, 3, figsize=(16, 5))
     for ax, param in zip(axes, ["n_estimators", "contamination", "max_features"]):
-        grp = res.groupby(param)["roc_auc"].agg(["mean", "std"]).reset_index()
+        grp = res.groupby(param)["val_roc_auc"].agg(["mean", "std"]).reset_index()
         ax.errorbar(range(len(grp)), grp["mean"], yerr=grp["std"],
                     marker="o", capsize=5, color="#C44E52")
         ax.set_xticks(range(len(grp)))
         ax.set_xticklabels(grp[param].astype(str))
-        ax.set_xlabel(param); ax.set_ylabel("ROC AUC (μέσος)")
+        ax.set_xlabel(param); ax.set_ylabel("validation ROC-AUC (μέσος)")
         ax.set_title(f"Επίδραση: {param}")
     plt.suptitle("Isolation Forest — Επίδραση υπερπαραμέτρων στο ROC AUC", y=1.02)
     plt.tight_layout()

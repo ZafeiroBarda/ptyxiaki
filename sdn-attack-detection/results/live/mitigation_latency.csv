@@ -1,3 +1,6 @@
-scenario,detection_latency_s,attacker_blocked,false_positives
-ddos_syn_flood,0.9,True,0
-arp_spoof,None,0,0,["10.0.0.6"],True
+scenario,experiment_type,detection_latency_s,attacker_blocked,false_positives
+data_exfiltration,api_telemetry,0.71,True,4
+ddos_syn_flood,packet_level,0.9,True,0
+flow_exhaustion,api_telemetry,0.14,,0
+lateral_movement,api_telemetry,0.31,True,1
+port_scan,api_telemetry,0.24,True,0

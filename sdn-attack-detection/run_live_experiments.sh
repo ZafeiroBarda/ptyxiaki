@@ -190,39 +190,10 @@ else
     echo "  ⚠ simulation/scenarios/arp_spoof.py not found, skipping"
 fi
 
-# ── Mitigation Latency (combined) ────────────────────────────────────────────
+# ── Mitigation latency & summary (ενιαίο σχήμα, βλ. 4.8) ─────────────────────
 echo ""
 echo "[7/8] Collecting mitigation latency metrics..."
-
-python3 - <<PYEOF
-import csv, os, glob, json
-
-results_dir = "${RESULTS}"
-out_csv = f"{results_dir}/mitigation_latency.csv"
-
-rows = []
-for f in glob.glob(f"{results_dir}/*_metrics.csv"):
-    try:
-        with open(f) as csvf:
-            for row in csv.DictReader(csvf):
-                if row.get("detection_latency_s") not in ("none", ""):
-                    rows.append({
-                        "scenario": row.get("scenario", os.path.basename(f)),
-                        "detection_latency_s": row.get("detection_latency_s"),
-                        "attacker_blocked": row.get("attacker_blocked"),
-                        "false_positives": row.get("false_positives", 0),
-                    })
-    except Exception as e:
-        print(f"  ⚠ Could not read {f}: {e}")
-
-if rows:
-    with open(out_csv, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["scenario","detection_latency_s","attacker_blocked","false_positives"])
-        w.writeheader(); w.writerows(rows)
-    print(f"[RESULT] Latency file: {out_csv} ({len(rows)} entries)")
-else:
-    print("  ⚠ No latency data collected")
-PYEOF
+python3 simulation/aggregate_live_results.py
 
 # ── False Positive Rate ───────────────────────────────────────────────────────
 echo ""
@@ -272,35 +243,7 @@ echo ""
 echo "======================================================================="
 echo " Aggregating experiment summary..."
 echo "======================================================================="
-
-python3 - <<PYEOF
-import csv, os, glob
-
-results_dir = "${RESULTS}"
-summary_rows = []
-
-for f in sorted(glob.glob(f"{results_dir}/*_metrics.csv")):
-    try:
-        with open(f) as csvf:
-            for row in csv.DictReader(csvf):
-                summary_rows.append(row)
-    except: pass
-
-if summary_rows:
-    fieldnames = list(summary_rows[0].keys())
-    with open(f"{results_dir}/experiment_summary.csv", "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        w.writeheader()
-        w.writerows(summary_rows)
-    print(f"[RESULT] Summary: {len(summary_rows)} experiments → {results_dir}/experiment_summary.csv")
-
-print()
-print("Generated files:")
-import glob as g
-for fn in sorted(g.glob(f"{results_dir}/*.csv")):
-    size = os.path.getsize(fn)
-    print(f"  {fn} ({size} bytes)")
-PYEOF
+python3 simulation/aggregate_live_results.py
 
 echo ""
 echo "======================================================================="

@@ -94,12 +94,20 @@ def main(use_insdn=False):
         df = preprocess.load_synthetic()
 
     print(f"    Σύνολο ροών: {len(df)} | Κλάσεις: {df[config.LABEL_COL].nunique()}")
-    data = preprocess.prepare(df, scale=True)
+    data = preprocess.prepare(df, scale=True,
+                              split=config.SPLIT_STRATEGY,
+                              val_size=config.VAL_SIZE)
     X_train, X_test = data["X_train"], data["X_test"]
     y_train, y_test = data["y_train"], data["y_test"]
+    X_val, y_val = data["X_val"], data["y_val"]
     class_names = data["class_names"]
+    print(f"    Διαχωρισμός: {data['split']} | train={len(y_train)} "
+          f"val={len(y_val)} test={len(y_test)}")
 
-    # --- Εκπαίδευση & σύγκριση ---
+    # --- Εκπαίδευση, επιλογή στο VALIDATION, τελική μέτρηση στο TEST ---
+    # Το test set δεν συμμετέχει στην επιλογή μοντέλου. Η κατάταξη γίνεται με
+    # βάση το validation macro-F1· οι τιμές του test αναφέρονται μόνο ως τελική,
+    # ανεξάρτητη αξιολόγηση.
     results = []
     trained = {}
     for name, model in build_models().items():
@@ -107,23 +115,28 @@ def main(use_insdn=False):
         t0 = time.perf_counter()
         model.fit(X_train, y_train)
         train_time = time.perf_counter() - t0
-        metrics = evaluate_model(model, X_test, y_test)
+        val_metrics = evaluate_model(model, X_val, y_val)
+        test_metrics = evaluate_model(model, X_test, y_test)
         trained[name] = model
         results.append({
             "model": name,
-            "accuracy": metrics["accuracy"],
-            "precision": metrics["precision"],
-            "recall": metrics["recall"],
-            "f1": metrics["f1"],
+            "val_f1": val_metrics["f1"],
+            "accuracy": test_metrics["accuracy"],
+            "precision": test_metrics["precision"],
+            "recall": test_metrics["recall"],
+            "f1": test_metrics["f1"],
             "train_time_s": train_time,
-            "pred_time_s": metrics["pred_time_s"],
+            "pred_time_s": test_metrics["pred_time_s"],
         })
-        print(f"    Accuracy={metrics['accuracy']:.4f}  F1={metrics['f1']:.4f}  "
+        print(f"    val F1={val_metrics['f1']:.4f} | test F1={test_metrics['f1']:.4f} "
               f"(train {train_time:.2f}s)")
 
-    res_df = pd.DataFrame(results).sort_values("f1", ascending=False).reset_index(drop=True)
+    # Κατάταξη κατά VALIDATION F1 (η επιλογή μοντέλου δεν βλέπει το test set)
+    res_df = (pd.DataFrame(results)
+              .sort_values("val_f1", ascending=False)
+              .reset_index(drop=True))
     print("\n" + "=" * 70)
-    print("ΣΥΓΚΡΙΤΙΚΑ ΑΠΟΤΕΛΕΣΜΑΤΑ (ταξινόμηση κατά F1)")
+    print("ΣΥΓΚΡΙΤΙΚΑ ΑΠΟΤΕΛΕΣΜΑΤΑ (επιλογή κατά val_f1, τελικές τιμές στο test)")
     print("=" * 70)
     print(res_df.to_string(index=False))
 
@@ -133,9 +146,9 @@ def main(use_insdn=False):
     print(f"\n[OK] Πίνακας αποτελεσμάτων: {res_csv}")
 
     # --- Αποθήκευση καλύτερου μοντέλου + artifacts ---
-    best_name = res_df.iloc[0]["model"]
+    best_name = res_df.iloc[0]["model"]        # <- επιλογή βάσει validation
     best_model = trained[best_name]
-    print(f"\n[*] Καλύτερο μοντέλο: {best_name}")
+    print(f"\n[*] Καλύτερο μοντέλο (κατά validation): {best_name}")
 
     joblib.dump(best_model, os.path.join(config.MODELS_DIR, "best_model.pkl"))
     joblib.dump(data["scaler"], os.path.join(config.MODELS_DIR, "scaler.pkl"))

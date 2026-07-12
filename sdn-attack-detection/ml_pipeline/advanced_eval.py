@@ -30,8 +30,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.model_selection import StratifiedKFold, cross_val_score
-from sklearn.preprocessing import label_binarize
+from sklearn.model_selection import (StratifiedKFold, StratifiedGroupKFold,
+                                     cross_val_score)
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import label_binarize, StandardScaler
 from sklearn.metrics import roc_curve, auc
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -60,12 +62,35 @@ def cv_models():
     }
 
 
-def run_cross_validation(X, y, k=5):
-    skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=config.RANDOM_STATE)
+def run_cross_validation(X, y, k=5, groups=None):
+    """k-fold CV χωρίς διαρροή.
+
+    Δύο διορθώσεις σε σχέση με την αφελή υλοποίηση:
+    1) Το StandardScaler μπαίνει ΜΕΣΑ σε Pipeline, ώστε να προσαρμόζεται
+       αποκλειστικά στο train fold κάθε επανάληψης. Αν το scaling γίνει μία φορά
+       πριν το CV, τα στατιστικά όλου του συνόλου διαρρέουν σε κάθε fold.
+    2) Χρησιμοποιείται StratifiedGroupKFold με ομάδες τα πανομοιότυπα διανύσματα
+       χαρακτηριστικών, ώστε διπλότυπα να μην εμφανίζονται ταυτόχρονα σε train
+       και validation fold.
+    """
+    if groups is not None:
+        cv = StratifiedGroupKFold(n_splits=k, shuffle=True,
+                                  random_state=config.RANDOM_STATE)
+        split_args = {"groups": groups}
+        print(f"[*] CV: StratifiedGroupKFold (group-aware, "
+              f"{len(np.unique(groups))} μοναδικά διανύσματα)")
+    else:
+        cv = StratifiedKFold(n_splits=k, shuffle=True,
+                             random_state=config.RANDOM_STATE)
+        split_args = {}
+        print("[*] CV: StratifiedKFold")
+
     rows = []
     for name, model in cv_models().items():
         print(f"[*] {k}-fold CV: {name}")
-        scores = cross_val_score(model, X, y, cv=skf, scoring="f1_macro", n_jobs=-1)
+        pipe = Pipeline([("scaler", StandardScaler()), ("model", model)])
+        scores = cross_val_score(pipe, X, y, cv=cv, scoring="f1_macro",
+                                 n_jobs=-1, **split_args)
         rows.append({
             "model": name,
             "f1_mean": scores.mean(),
@@ -138,14 +163,20 @@ def plot_roc(model, X_train, X_test, y_train, y_test, class_names, out_path):
 def main(use_insdn=False, k=5):
     os.makedirs(config.RESULTS_DIR, exist_ok=True)
     df = preprocess.load_insdn() if use_insdn else preprocess.load_synthetic()
-    data = preprocess.prepare(df, scale=True)
+    data = preprocess.prepare(df, scale=True,
+                              split=config.SPLIT_STRATEGY,
+                              val_size=config.VAL_SIZE)
 
-    # Cross-validation σε όλο το dataset (train+test μαζί, χωρισμένο εσωτερικά)
-    X_all = np.vstack([data["X_train"], data["X_test"]])
-    y_all = np.concatenate([data["y_train"], data["y_test"]])
+    # Το CV τρέχει στα ΑΚΑΤΕΡΓΑΣΤΑ χαρακτηριστικά: το scaling γίνεται μέσα στο
+    # Pipeline, ξεχωριστά για κάθε fold. (Παλαιότερα ενώνονταν τα ΗΔΗ
+    # κανονικοποιημένα X_train/X_test, οπότε τα στατιστικά διέρρεαν στα folds.)
+    feats = [c for c in config.FEATURE_COLUMNS if c in df.columns]
+    X_all = df[feats].astype(float).values
+    y_all = preprocess.LabelEncoder().fit_transform(df[config.LABEL_COL].values)
+    groups = preprocess.feature_hash_groups(X_all)
 
-    print("=== STRATIFIED K-FOLD CROSS-VALIDATION ===")
-    cv_df = run_cross_validation(X_all, y_all, k=k)
+    print("=== STRATIFIED GROUP K-FOLD CROSS-VALIDATION ===")
+    cv_df = run_cross_validation(X_all, y_all, k=k, groups=groups)
     cv_df.to_csv(os.path.join(config.RESULTS_DIR, "cross_validation.csv"), index=False)
     print("\n", cv_df.to_string(index=False))
     plot_cv(cv_df, os.path.join(config.RESULTS_DIR, "cross_validation.png"))

@@ -13,10 +13,38 @@ preprocess.py
 """
 
 import os
+import hashlib
+
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedGroupKFold
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+
+
+def feature_hash_groups(X):
+    """Ομάδα ανά ΜΟΝΑΔΙΚΟ διάνυσμα χαρακτηριστικών.
+
+    Στο InSDN το 51,7% των εγγραφών είναι ακριβή διπλότυπα (99,3% στην κλάση
+    DDoS), κάτι εγγενές στις επιθέσεις πλημμύρας. Με τυχαίο διαχωρισμό, όμοια
+    διανύσματα καταλήγουν ΚΑΙ στο train ΚΑΙ στο test, οπότε το μοντέλο μπορεί
+    να απομνημονεύσει αντί να γενικεύσει.
+
+    Αποδίδοντας το ίδιο group id σε κάθε πανομοιότυπο διάνυσμα και κάνοντας
+    group-aware split, εξασφαλίζουμε ότι ΚΑΝΕΝΑ διάνυσμα του test δεν έχει
+    ακριβές αντίγραφο στο train (leakage-resistant split).
+    """
+    Xr = np.round(np.asarray(X, dtype=float), 6)
+    return np.array([hashlib.md5(row.tobytes()).hexdigest() for row in Xr])
+
+
+def group_train_test_split(X, y, test_size, random_state):
+    """Στρωματοποιημένος διαχωρισμός που ΔΕΝ σπάει ομάδες διπλότυπων."""
+    groups = feature_hash_groups(X)
+    n_splits = max(2, int(round(1.0 / test_size)))
+    sgkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True,
+                                random_state=random_state)
+    train_idx, test_idx = next(sgkf.split(X, y, groups=groups))
+    return train_idx, test_idx, groups
 
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -83,14 +111,20 @@ def load_insdn(path=None):
     return _clean_dataframe(df, dedup=False)
 
 
-def prepare(df, scale=True, feature_columns=None, subsample=None):
+def prepare(df, scale=True, feature_columns=None, subsample=None,
+            split="random", val_size=0.0):
     """
-    Χωρίζει σε X/y, κωδικοποιεί ετικέτες, κάνει train/test split και (προαιρετικά)
-    κανονικοποίηση χαρακτηριστικών.
+    Χωρίζει σε X/y, κωδικοποιεί ετικέτες, κάνει train/(val)/test split και
+    (προαιρετικά) κανονικοποίηση χαρακτηριστικών.
 
     subsample: αν δοθεί (π.χ. 60000), κάνει stratified υποδειγματοληψία ΠΡΙΝ το
     split — χρήσιμο για μεγάλα datasets (InSDN ~343k) ώστε αργά μοντέλα (SVM/KNN)
     να είναι εφικτά σε περιορισμένους πόρους.
+
+    split:    "random" (κλασικός στρωματοποιημένος) ή "group" (leakage-resistant:
+              τα πανομοιότυπα διανύσματα δεν μοιράζονται μεταξύ train και test).
+    val_size: ποσοστό του ΣΥΝΟΛΟΥ που αποσπάται από το train ως validation set,
+              για επιλογή μοντέλου χωρίς να «μολυνθεί» το test set.
 
     Επιστρέφει dict με όλα τα απαραίτητα για εκπαίδευση & αξιολόγηση.
     """
@@ -108,26 +142,57 @@ def prepare(df, scale=True, feature_columns=None, subsample=None):
     le = LabelEncoder()
     y = le.fit_transform(y_raw)
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
-        test_size=config.TEST_SIZE,
-        random_state=config.RANDOM_STATE,
-        stratify=y,  # διατήρηση αναλογίας κλάσεων
-    )
+    # ── Διαχωρισμός train / test ────────────────────────────────────────────
+    # split="group": τα πανομοιότυπα διανύσματα μένουν στην ΙΔΙΑ πλευρά, ώστε
+    #                να μην υπάρχει διαρροή μέσω διπλότυπων (leakage-resistant).
+    # split="random": ο κλασικός στρωματοποιημένος τυχαίος διαχωρισμός.
+    if split == "group":
+        tr_idx, te_idx, _ = group_train_test_split(
+            X, y, config.TEST_SIZE, config.RANDOM_STATE)
+        X_train, X_test = X[tr_idx], X[te_idx]
+        y_train, y_test = y[tr_idx], y[te_idx]
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=config.TEST_SIZE,
+            random_state=config.RANDOM_STATE,
+            stratify=y,
+        )
+
+    # ── Προαιρετικό validation set, αποσπασμένο ΑΠΟ ΤΟ TRAIN ───────────────
+    # Χρησιμεύει για επιλογή μοντέλου/υπερπαραμέτρων, ώστε το test set να
+    # παραμένει εντελώς αόρατο μέχρι την τελική αξιολόγηση.
+    X_val = y_val = None
+    if val_size and val_size > 0:
+        if split == "group":
+            rel = val_size / (1.0 - config.TEST_SIZE)
+            tr2, va2, _ = group_train_test_split(
+                X_train, y_train, rel, config.RANDOM_STATE)
+            X_train, X_val = X_train[tr2], X_train[va2]
+            y_train, y_val = y_train[tr2], y_train[va2]
+        else:
+            rel = val_size / (1.0 - config.TEST_SIZE)
+            X_train, X_val, y_train, y_val = train_test_split(
+                X_train, y_train, test_size=rel,
+                random_state=config.RANDOM_STATE, stratify=y_train)
 
     scaler = None
     if scale:
         scaler = StandardScaler()
         X_train = scaler.fit_transform(X_train)
         X_test = scaler.transform(X_test)
+        if X_val is not None:
+            X_val = scaler.transform(X_val)
 
     return {
         "X_train": X_train, "X_test": X_test,
         "y_train": y_train, "y_test": y_test,
+        "X_val": X_val, "y_val": y_val,
         "feature_columns": feature_columns,
         "label_encoder": le,
         "scaler": scaler,
         "class_names": list(le.classes_),
+        "split": split,
     }
 
 

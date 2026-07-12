@@ -1,0 +1,7 @@
+split,model,accuracy,macro_f1,test_leaked_pct
+random,Random Forest,0.9899,0.9448,50.2
+random,Decision Tree,0.9893,0.9435,50.2
+random,Logistic Regression,0.9107,0.7289,50.2
+group,Random Forest,0.9892,0.9472,0.0
+group,Decision Tree,0.9892,0.9428,0.0
+group,Logistic Regression,0.91,0.7263,0.0
