@@ -1,6 +1,11 @@
+# Εξαρτήσεις της live εφαρμογής (χρησιμοποιείται από το app_sdn/Dockerfile).
+# ΠΡΟΣΟΧΗ: το scikit-learn πρέπει να μένει συγχρονισμένο με το root
+# requirements.txt — τα models/*.pkl εκπαιδεύτηκαν με 1.9 (βλ. models/meta.json
+# -> trained_with) και η φόρτωσή τους με παλαιότερη έκδοση βγάζει
+# InconsistentVersionWarning.
 flask>=3.0
 requests>=2.31
-scikit-learn>=1.3
+scikit-learn>=1.9
 numpy>=1.24
 pandas>=2.0
 joblib>=1.3

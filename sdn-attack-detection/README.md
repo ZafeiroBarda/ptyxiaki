@@ -70,7 +70,7 @@ sdn-attack-detection/
 ```bash
 pip install -r requirements.txt
 bash run_all.sh            # ML + DL + CV/ROC + adversarial — αναπαράγει τα αποτελέσματα του κειμένου
-pytest tests/ -v           # 76 tests (όσα απαιτούν Docker/live stack γίνονται skip)
+pytest tests/ -v           # 81 tests: 73 pass, 8 skip χωρίς Docker/live stack
 ```
 Λεπτομέρειες αναπαραγωγιμότητας: **§6**.
 
@@ -248,7 +248,7 @@ python3 controller/train_live_model.py --collected
 ```bash
 pip install -r requirements.txt
 bash run_all.sh          # <- ΑΥΤΟ αναπαράγει τους πίνακες/σχήματα του κειμένου
-pytest tests/ -v
+pytest tests/ -v         # 81 tests: 73 pass, 8 skip χωρίς Docker/live stack
 ```
 
 **Το `bash run_all.sh` χωρίς ορίσματα** παράγει το συνθετικό dataset στην

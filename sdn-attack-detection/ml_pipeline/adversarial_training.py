@@ -15,6 +15,7 @@
 """
 import math
 import json
+import sys
 from pathlib import Path
 
 import joblib
@@ -30,8 +31,29 @@ RES    = BASE / "results"
 MODELS = BASE / "models"
 DATA   = BASE / "data"
 RES.mkdir(exist_ok=True)
+DATA.mkdir(exist_ok=True)
 
-FEATS = json.load(open(MODELS / "feature_columns.json"))
+CSV = DATA / "sdn_flows_synthetic.csv"
+ENCODER = MODELS / "label_encoder.pkl"
+FEATCOLS = MODELS / "feature_columns.json"
+
+# Το script μπορεί να τρέξει αυτόνομα: αν λείπει το συνθετικό dataset, το
+# παράγει (ντετερμινιστικά, ίδιο seed) αντί να αποτύχει.
+if not CSV.exists():
+    print(f"[!] Δεν βρέθηκε {CSV.relative_to(BASE)} — δημιουργείται...")
+    sys.path.insert(0, str(BASE / "ml_pipeline"))
+    import generate_synthetic_dataset as gen
+    gen.generate(hard=False).to_csv(CSV, index=False)
+    print(f"[OK] Δημιουργήθηκε {CSV.relative_to(BASE)}")
+
+# Τα artifacts του train.py είναι προαπαιτούμενο (κοινή κωδικοποίηση κλάσεων).
+missing = [p.name for p in (ENCODER, FEATCOLS) if not p.exists()]
+if missing:
+    sys.exit(f"[ΣΦΑΛΜΑ] Λείπουν από το models/: {', '.join(missing)}.\n"
+             f"         Τρέξε πρώτα: python3 ml_pipeline/evaluate.py\n"
+             f"         (ή ολόκληρο το pipeline: bash run_all.sh)")
+
+FEATS = json.load(open(FEATCOLS))
 LABEL = "Label"
 NORMAL = "Normal"
 EPSILONS = [0.0, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.65, 0.80, 1.0]
@@ -39,7 +61,7 @@ AUG_EPS  = [0.10, 0.20, 0.30]     # ε για adversarial augmentation στο tr
 RNG = 42
 
 # --- data ---
-df = pd.read_csv(DATA / "sdn_flows_synthetic.csv")
+df = pd.read_csv(CSV)
 df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=FEATS + [LABEL])
 X = df[FEATS].astype(float).values
 
