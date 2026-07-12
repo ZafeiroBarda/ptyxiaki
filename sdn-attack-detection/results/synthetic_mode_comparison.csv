@@ -1,0 +1,11 @@
+mode,model,val_macro_f1,test_accuracy,test_macro_f1
+clean,Random Forest,1.0,1.0,1.0
+clean,Decision Tree,0.994,0.996,0.9955
+clean,KNN,0.9864,0.9906,0.99
+clean,SVM (RBF),0.9961,0.9975,0.9974
+clean,Logistic Regression,0.9934,0.995,0.9947
+hard,Random Forest,0.9918,0.9972,0.9955
+hard,Decision Tree,0.9807,0.9874,0.9828
+hard,KNN,0.9729,0.9747,0.9701
+hard,SVM (RBF),0.9881,0.9912,0.9893
+hard,Logistic Regression,0.9805,0.9849,0.9814

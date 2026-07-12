@@ -80,8 +80,41 @@ class Switch:
         dur = max(0.05, time.time() - rec["start"])
         return [(d["pkts"], d["bytes"], dur / n) for d in rec["dests"].values()]
 
+    def sync_flow_table(self):
+        """Ευθυγραμμίζει τους τοπικούς κανόνες DROP με τον πίνακα ροών του ελεγκτή.
+
+        ΓΙΑΤΙ ΧΡΕΙΑΖΕΤΑΙ: μόλις μια πηγή μπει στο self.blocked, το ingest()
+        απορρίπτει τα πακέτα της, οπότε δεν συγκεντρώνονται στατιστικά και δεν
+        στέλνεται ποτέ νέα τηλεμετρία γι' αυτήν. Χωρίς ανεξάρτητο μηχανισμό, ο
+        αποκλεισμός δεν θα λάμβανε ποτέ απάντηση FORWARD και θα παρέμενε τοπικά
+        για πάντα, ακόμη και αφού ο ελεγκτής άρει τον κανόνα (π.χ. μέσω
+        /unblock ή λήξης).
+
+        Σωστή σημασιολογία SDN: το επίπεδο δεδομένων αντικατοπτρίζει το επίπεδο
+        ελέγχου. Ο πίνακας ροών του ελεγκτή είναι η μοναδική πηγή αλήθειας.
+        """
+        try:
+            r = requests.get(f"{self.controller_url}/flow_table",
+                             headers=self._auth_headers, timeout=3)
+            table = r.json()
+            if not isinstance(table, dict):
+                return
+            active = {ip for ip, rule in table.items()
+                      if (rule.get("action", "DROP") if isinstance(rule, dict) else "DROP") == "DROP"}
+            with self.lock:
+                released = self.blocked - active
+                self.blocked = active
+            for ip in released:
+                print(f"[SWITCH {self.switch_id}] Άρση αποκλεισμού: {ip}")
+        except Exception as e:
+            print(f"[SWITCH {self.switch_id}] Σφάλμα συγχρονισμού flow_table: {e}")
+
     def push_telemetry(self):
         """Στέλνει τηλεμετρία για κάθε πηγή και εφαρμόζει την απόφαση."""
+        # Πρώτα ευθυγράμμιση με τον ελεγκτή: αν ένας κανόνας DROP έχει αρθεί,
+        # η πηγή ξαναρχίζει να προωθείται και η τηλεμετρία της επανέρχεται.
+        self.sync_flow_table()
+
         with self.lock:
             snapshot = dict(self.stats)
             self.stats.clear()
@@ -93,10 +126,11 @@ class Switch:
                                   json={"src": src, "dst": dst, "flows": flows},
                                   headers=self._auth_headers, timeout=3)
                 action = r.json().get("action", "FORWARD")
-                if action == "DROP":
-                    self.blocked.add(src)
-                elif src in self.blocked:
-                    self.blocked.discard(src)
+                with self.lock:
+                    if action == "DROP":
+                        self.blocked.add(src)
+                    else:
+                        self.blocked.discard(src)
             except Exception as e:
                 print(f"[SWITCH {self.switch_id}] Σφάλμα τηλεμετρίας: {e}")
 

@@ -172,3 +172,40 @@ def test_defense_mode_reset_with_admin_token(client, monkeypatch):
                              "Content-Type": "application/json"})
     assert r.status_code == 200
     assert r.get_json()["status"] == "reset"
+
+
+# ── Προστασία endpoints /register και /simulate (4.14) ───────────────────────
+
+def test_register_requires_token_in_defense_mode(client, monkeypatch):
+    monkeypatch.setattr(ctrl, "DEFENSE_MODE", True)
+    r = client.post("/register",
+                    json={"node_id": "rogue", "type": "switch", "ip": "10.0.0.66"},
+                    headers=NOAUTH)
+    assert r.status_code == 401
+
+
+def test_register_with_token_succeeds(client, monkeypatch):
+    monkeypatch.setattr(ctrl, "DEFENSE_MODE", True)
+    r = client.post("/register",
+                    json={"node_id": "s1", "type": "switch", "ip": "10.0.0.1"},
+                    headers=AUTH)
+    assert r.status_code == 200
+
+
+def test_simulate_command_requires_admin_in_defense_mode(client, monkeypatch):
+    monkeypatch.setattr(ctrl, "DEFENSE_MODE", True)
+    r = client.post("/simulate/command",
+                    json={"cmd": "start", "attackers": ["h6"], "victim": "h5"},
+                    headers=AUTH)   # switch token δεν αρκεί για διαχειριστική ενέργεια
+    assert r.status_code == 401
+    r = client.post("/simulate/command",
+                    json={"cmd": "start", "attackers": ["h6"], "victim": "h5"},
+                    headers={"X-Admin-Token": "sdn-admin-2024",
+                             "Content-Type": "application/json"})
+    assert r.status_code == 200
+
+
+def test_simulate_poll_requires_switch_token_in_defense_mode(client, monkeypatch):
+    monkeypatch.setattr(ctrl, "DEFENSE_MODE", True)
+    r = client.get("/simulate/poll")
+    assert r.status_code == 401

@@ -159,7 +159,8 @@ def sim_control_loop(hosts, stop_event):
         if stop_event.is_set():
             break
         try:
-            cmd = requests.get(f"{CONTROLLER_URL}/simulate/poll", timeout=2).json()
+            cmd = requests.get(f"{CONTROLLER_URL}/simulate/poll",
+                               headers=_SWITCH_HEADERS, timeout=2).json()
         except Exception:
             continue
         if not cmd or "cmd" not in cmd:

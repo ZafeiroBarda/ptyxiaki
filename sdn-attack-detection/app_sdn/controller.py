@@ -232,8 +232,46 @@ def log_event(msg):
     print(f"[CONTROLLER] {msg}")
 
 
+def _require_switch_token():
+    """Έλεγχος X-Switch-Token. Επιστρέφει response 401 σε DEFENSE_MODE, αλλιώς None.
+
+    Καταγράφει πάντα την απόπειρα, ώστε να μετριέται ακόμη και όταν η άμυνα
+    είναι ανενεργή (λειτουργία επίδειξης).
+    """
+    if request.headers.get("X-Switch-Token", "") == SWITCH_API_KEY:
+        return None
+    caller = request.remote_addr
+    with _injection_lock:
+        _injection_stats["attempts"] += 1
+        _injection_stats["sources"][caller] = _injection_stats["sources"].get(caller, 0) + 1
+    log_event(f"⚠️  Μη εξουσιοδοτημένη πρόσβαση από {caller} στο {request.path}")
+    if DEFENSE_MODE:
+        with _injection_lock:
+            _injection_stats["blocked"] += 1
+        return jsonify({"error": "Unauthorized: missing or invalid X-Switch-Token"}), 401
+    return None
+
+
+def _require_admin_token():
+    """Έλεγχος X-Admin-Token. Επιστρέφει response 401 σε DEFENSE_MODE, αλλιώς None."""
+    if not DEFENSE_MODE:
+        return None
+    if request.headers.get("X-Admin-Token", "") == ADMIN_API_KEY:
+        return None
+    log_event(f"⚠️  Απόπειρα διαχειριστικής ενέργειας χωρίς token από {request.remote_addr}")
+    return jsonify({"error": "Unauthorized: X-Admin-Token required"}), 401
+
+
 @app.route("/register", methods=["POST"])
 def register():
+    # Το /register ήταν εντελώς ανοιχτό, ενώ προσθέτει τον καλούντα στις
+    # έμπιστες πηγές τηλεμετρίας όταν δηλώνεται ως switch. Οποιοσδήποτε
+    # μπορούσε έτσι να αποκτήσει καθεστώς έμπιστου μεταγωγέα και να
+    # παρακάμψει τον έλεγχο δηλητηρίασης τηλεμετρίας.
+    denied = _require_switch_token()
+    if denied:
+        return denied
+
     data = request.get_json(force=True, silent=True)
     if not isinstance(data, dict):
         return jsonify({"error": "invalid or missing JSON body"}), 400
@@ -474,7 +512,14 @@ def reset():
 
 @app.route("/simulate/command", methods=["POST"])
 def simulate_command():
-    """Dashboard → set a pending sim command {cmd, attackers, victim}."""
+    """Dashboard → set a pending sim command {cmd, attackers, victim}.
+
+    Διαχειριστική ενέργεια: εκκινεί/σταματά επιθέσεις στο δίκτυο, οπότε
+    προστατεύεται με admin token όπως τα /reset και /unblock.
+    """
+    denied = _require_admin_token()
+    if denied:
+        return denied
     with _sim_lock:
         _sim_pending.clear()
         _sim_pending.update(request.json or {})
@@ -483,7 +528,13 @@ def simulate_command():
 
 @app.route("/simulate/poll", methods=["GET"])
 def simulate_poll():
-    """Mininet polls this to pick up pending commands (one-shot, clears on read)."""
+    """Mininet polls this to pick up pending commands (one-shot, clears on read).
+
+    Μόνο εγγεγραμμένοι μεταγωγείς επιτρέπεται να παραλαμβάνουν εντολές.
+    """
+    denied = _require_switch_token()
+    if denied:
+        return denied
     with _sim_lock:
         cmd = dict(_sim_pending)
         _sim_pending.clear()

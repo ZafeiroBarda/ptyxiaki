@@ -16,6 +16,8 @@ from dash import Input, Output, State, dcc, html
 from flask import Response
 
 CONTROLLER_URL = os.environ.get("CONTROLLER_URL", "http://127.0.0.1:9000")
+ADMIN_API_KEY  = os.environ.get("ADMIN_API_KEY", "sdn-admin-2024")
+_ADMIN_HEADERS = {"X-Admin-Token": ADMIN_API_KEY}
 TIME_WINDOW = 120  # seconds of chart history
 
 _COLORS = {
@@ -566,14 +568,14 @@ def handle_sim(start_clicks, stop_clicks, victim, attackers, attack_type):
             requests.post(f"{CONTROLLER_URL}/simulate/command",
                           json={"cmd": "start", "attackers": attackers,
                                 "victim": victim, "attack_type": attack_type},
-                          timeout=2)
+                          headers=_ADMIN_HEADERS, timeout=2)
             return f"✅ {label}: {', '.join(attackers)} → {victim}"
         except Exception:
             return "❌ Controller μη διαθέσιμος"
     elif triggered == "btn-stop":
         try:
             requests.post(f"{CONTROLLER_URL}/simulate/command",
-                          json={"cmd": "stop"}, timeout=2)
+                          json={"cmd": "stop"}, headers=_ADMIN_HEADERS, timeout=2)
             return "🛑 Επίθεση σταμάτησε"
         except Exception:
             return "❌ Controller μη διαθέσιμος"
