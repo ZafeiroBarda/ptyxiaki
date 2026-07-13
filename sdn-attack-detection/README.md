@@ -3,12 +3,12 @@
 Διπλωματική εργασία — υλοποίηση σε **Python**. Το έργο καλύπτει δύο
 συμπληρωματικές προσεγγίσεις:
 
-- **Μέθοδος Β — Offline ανίχνευση με Μηχανική Μάθηση** σε δημόσιο dataset
-  (τύπου **InSDN**, δομή CICFlowMeter). Εκπαίδευση & σύγκριση πολλών μοντέλων.
 - **Μέθοδος Α — Live ανίχνευση & αντιμετώπιση** σε **Mininet / Open vSwitch**,
   με **υβριδικό Flask-based controller** (η τελική αρχιτεκτονική της
   διπλωματικής) και **προαιρετικό Ryu/OpenFlow profile**, με αυτόματο
   μπλοκάρισμα της επίθεσης.
+- **Μέθοδος Β — Offline ανίχνευση με Μηχανική Μάθηση** σε δημόσιο dataset
+  (τύπου **InSDN**, δομή CICFlowMeter). Εκπαίδευση & σύγκριση πολλών μοντέλων.
 
 ---
 
@@ -112,52 +112,14 @@ python3 ml_pipeline/isolation_forest_detector.py --insdn
 ### Δύο εκδοχές ανά μέθοδο (όπως ζητήθηκε)
 | | Εκδοχή 1 | Εκδοχή 2 |
 |---|---|---|
-| **Μέθοδος Β (ML)** | Κλασικά μοντέλα (`train.py`) | Deep Learning (`deep_learning.py`) |
 | **Μέθοδος Α (controller)** | Ryu (`detection_controller.py`) | POX (`pox_detection.py`) |
 | **Μέθοδος Α (τοπολογία)** | Single-switch (`topology.py`) | Multi-switch tree (`topology_multi.py`) |
+| **Μέθοδος Β (ML)** | Κλασικά μοντέλα (`train.py`) | Deep Learning (`deep_learning.py`) |
 | **Live detection** | Σε Linux/Mininet | Offline, παντού (`offline_replay.py`) |
 
 ---
 
-## 2. Μέθοδος Β — Offline ML (τρέχει σε ΟΠΟΙΟΔΗΠΟΤΕ OS)
-
-### Εγκατάσταση
-```bash
-pip install -r requirements.txt
-```
-
-### Εκτέλεση (με τα συνθετικά δεδομένα — άμεσα)
-```bash
-python3 ml_pipeline/generate_synthetic_dataset.py   # φτιάχνει data/sdn_flows_synthetic.csv
-python3 ml_pipeline/evaluate.py                      # εκπαιδεύει, συγκρίνει, βγάζει γραφήματα
-```
-Παράγονται στο `results/`:
-- `model_comparison.png` — σύγκριση Accuracy/Precision/Recall/F1 ανά μοντέλο
-- `confusion_matrix.png` — confusion matrix του καλύτερου μοντέλου
-- `feature_importance.png` — σημαντικότητα χαρακτηριστικών (Random Forest)
-- `classification_report.txt` — αναλυτικές μετρικές ανά κλάση
-- `model_comparison.csv` — πίνακας αποτελεσμάτων
-
-### Εκτέλεση με το ΠΡΑΓΜΑΤΙΚΟ InSDN dataset
-1. Κατέβασε το InSDN (αναζήτησε **"InSDN dataset"** σε Kaggle ή στο
-   πανεπιστημιακό repository — TU Dublin) και βάλ' το ως `data/InSDN_dataset.csv`.
-2. Άνοιξε το `ml_pipeline/preprocess.py` → συνάρτηση `load_insdn()` και
-   προσάρμοσε το `label_map` στα πραγματικά ονόματα κλάσεων του dataset.
-3. Τρέξε:
-   ```bash
-   python3 ml_pipeline/evaluate.py --insdn
-   ```
-
-> **Σημείωση:** τα συνθετικά δεδομένα έχουν καθαρές, μη επικαλυπτόμενες
-> υπογραφές ανά κλάση — γι' αυτό τα ποσοστά είναι πολύ υψηλά (RF F1 ≈ 0,9998).
-> Το κείμενο το δηλώνει ρητά και δεν τα παρουσιάζει ως ένδειξη γενίκευσης: τα
-> **ουσιαστικά** συμπεράσματα στηρίζονται στο πραγματικό **InSDN** (§7) και στα
-> ζωντανά σενάρια. Για έλεγχο ευρωστίας υπάρχει η εκδοχή
-> `bash run_all.sh --hard` (θόρυβος + επικάλυψη κλάσεων).
-
----
-
-## 3. Μέθοδος Α — Live προσομοίωση (απαιτεί LINUX)
+## 2. Μέθοδος Α — Live προσομοίωση (απαιτεί LINUX)
 
 > Το Mininet τρέχει μόνο σε Linux. Σε Windows/Mac χρησιμοποίησε **Ubuntu VM**
 > (VirtualBox) — υπάρχει και έτοιμο Mininet VM image.
@@ -214,14 +176,52 @@ python3 controller/train_live_model.py --collected
 
 ---
 
+## 3. Μέθοδος Β — Offline ML (τρέχει σε ΟΠΟΙΟΔΗΠΟΤΕ OS)
+
+### Εγκατάσταση
+```bash
+pip install -r requirements.txt
+```
+
+### Εκτέλεση (με τα συνθετικά δεδομένα — άμεσα)
+```bash
+python3 ml_pipeline/generate_synthetic_dataset.py   # φτιάχνει data/sdn_flows_synthetic.csv
+python3 ml_pipeline/evaluate.py                      # εκπαιδεύει, συγκρίνει, βγάζει γραφήματα
+```
+Παράγονται στο `results/`:
+- `model_comparison.png` — σύγκριση Accuracy/Precision/Recall/F1 ανά μοντέλο
+- `confusion_matrix.png` — confusion matrix του καλύτερου μοντέλου
+- `feature_importance.png` — σημαντικότητα χαρακτηριστικών (Random Forest)
+- `classification_report.txt` — αναλυτικές μετρικές ανά κλάση
+- `model_comparison.csv` — πίνακας αποτελεσμάτων
+
+### Εκτέλεση με το ΠΡΑΓΜΑΤΙΚΟ InSDN dataset
+1. Κατέβασε το InSDN (αναζήτησε **"InSDN dataset"** σε Kaggle ή στο
+   πανεπιστημιακό repository — TU Dublin) και βάλ' το ως `data/InSDN_dataset.csv`.
+2. Άνοιξε το `ml_pipeline/preprocess.py` → συνάρτηση `load_insdn()` και
+   προσάρμοσε το `label_map` στα πραγματικά ονόματα κλάσεων του dataset.
+3. Τρέξε:
+   ```bash
+   python3 ml_pipeline/evaluate.py --insdn
+   ```
+
+> **Σημείωση:** τα συνθετικά δεδομένα έχουν καθαρές, μη επικαλυπτόμενες
+> υπογραφές ανά κλάση — γι' αυτό τα ποσοστά είναι πολύ υψηλά (RF F1 ≈ 0,9998).
+> Το κείμενο το δηλώνει ρητά και δεν τα παρουσιάζει ως ένδειξη γενίκευσης: τα
+> **ουσιαστικά** συμπεράσματα στηρίζονται στο πραγματικό **InSDN** (§7) και στα
+> ζωντανά σενάρια. Για έλεγχο ευρωστίας υπάρχει η εκδοχή
+> `bash run_all.sh --hard` (θόρυβος + επικάλυψη κλάσεων).
+
+---
+
 ## 4. Τι δείχνει η εργασία (αφήγηση)
 
 1. **Θεωρία**: αρχιτεκτονική SDN, control/data plane, OpenFlow, απειλές
    (DoS/DDoS στον controller, flow-rule injection, υποκλοπή).
 2. **Πρόβλημα**: γιατί οι παραδοσιακές μέθοδοι υστερούν → ανάγκη για ML.
-3. **Μέθοδος Β**: εκπαίδευση & σύγκριση μοντέλων ML σε δεδομένα ροών.
-4. **Μέθοδος Α**: ενσωμάτωση του μοντέλου σε live SDN controller, ανίχνευση
+3. **Μέθοδος Α**: ενσωμάτωση του μοντέλου σε live SDN controller, ανίχνευση
    σε πραγματικό χρόνο και **αυτόματη αντιμετώπιση** (drop-rules).
+4. **Μέθοδος Β**: εκπαίδευση & σύγκριση μοντέλων ML σε δεδομένα ροών.
 5. **Αξιολόγηση**: μετρικές (accuracy/precision/recall/F1), χρόνος ανίχνευσης,
    επίδραση του mitigation στην κίνηση.
 
