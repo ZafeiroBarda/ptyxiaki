@@ -1,0 +1,16 @@
+{
+  "run_id": "mininet_run_validated_20260713_155234",
+  "timestamp": "2026-07-13T15:52:34.593648",
+  "model": "isolation_forest_live.pkl (retrained: pkt_size 60-1400B, duration 0.5-60s)",
+  "telemetry": "per-flow dump-flows + DURATION_CAP=60s",
+  "legit_verdicts": {
+    "Normal": 164,
+    "Attack(FP)": 0
+  },
+  "attacker_verdicts": {
+    "Attack": 2
+  },
+  "false_positive_rate_pct": 0.0,
+  "attacker_packets_blocked": 0,
+  "result": "0% false positives σε νόμιμη κίνηση· επιτιθέμενος ανιχνεύθηκε & μπλοκαρίστηκε."
+}
