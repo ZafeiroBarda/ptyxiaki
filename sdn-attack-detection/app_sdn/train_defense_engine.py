@@ -32,20 +32,31 @@ import config
 def gen_normal_aggregate(n=20000, seed=config.RANDOM_STATE):
     """Συγκεντρωτικά features ΜΟΝΟ φυσιολογικής κίνησης (όπως θα τα δει ο controller).
 
-    Το κλειδί του διαχωρισμού: η ΦΥΣΙΟΛΟΓΙΚΗ κίνηση έχει ΚΑΝΟΝΙΚΟ μέγεθος πακέτου
-    (~200-1400 bytes) και ΛΙΓΕΣ σύντομες ροές, ΑΝΕΞΑΡΤΗΤΑ από τον όγκο
-    (μια μεταφορά αρχείου έχει πολλά πακέτα αλλά μεγάλα). Αντίθετα, ένα flood
-    έχει ΜΙΚΡΟΣΚΟΠΙΚΑ πακέτα (~40-100 bytes), και ένα scan πολλές σύντομες ροές.
-    Έτσι το Isolation Forest μαθαίνει το "φυσιολογικό" χωρίς να μπλοκάρει downloads.
+    Οι κατανομές αντικατοπτρίζουν ό,τι πραγματικά παράγει η per-flow τηλεμετρία
+    (ovs-ofctl dump-flows / OFPFlowStats), όπως επιβεβαιώθηκε σε ζωντανή εκτέλεση:
+
+      * Η νόμιμη κίνηση καλύπτει ΔΥΟ καθεστώτα και το μοντέλο πρέπει να δέχεται
+        και τα δύο: (α) διαδραστική/ελέγχου (ping, DNS, ACK) με ΜΙΚΡΑ πακέτα
+        (~60-200 bytes) και ΛΙΓΑ πακέτα ανά παράθυρο, και (β) μαζική μεταφορά
+        (download/upload) με μεγάλα πακέτα και πολλά πακέτα.
+      * Οι ροές μπορεί να είναι ΜΑΚΡΟΒΙΕΣ: η διάρκεια φράσσεται στα 60s στην
+        τηλεμετρία (flow_telemetry.DURATION_CAP), οπότε εδώ καλύπτεται 0.5-60s.
+        (Η προηγούμενη έκδοση κάλυπτε μόνο 0.5-15s και σήμαινε λανθασμένα κάθε
+        μακρόβια ροή ping ως ανωμαλία — false positive που εντοπίστηκε live.)
+
+    Οι επιθέσεις παραμένουν διακριτές μέσω ΑΛΛΩΝ χαρακτηριστικών, όχι της
+    διάρκειας: ένα flood έχει ΤΕΡΑΣΤΙΟ πλήθος πακέτων ανά ροή (πολύ πάνω από
+    κάθε νόμιμο παράθυρο), ενώ ένα scan έχει ΠΟΛΛΕΣ σύντομες ροές (υψηλό
+    flow_count και short_flow_ratio).
     """
     rng = np.random.default_rng(seed)
     rows = []
     for _ in range(n):
         flow_count = int(rng.integers(1, 11))                  # 1..10 προορισμοί
-        avg_pkts = float(rng.uniform(5, 1500))                 # ΕΥΡΥ: από λίγα έως download
-        avg_pkt_size = float(rng.uniform(250, 1400))           # ΚΑΝΟΝΙΚΟ μέγεθος πακέτου
+        avg_pkts = float(rng.uniform(5, 1500))                 # λίγα (ping) έως μέτριος όγκος
+        avg_pkt_size = float(rng.uniform(60, 1400))            # ΜΙΚΡΑ (ping/ACK ~60) έως μεγάλα
         avg_bytes = avg_pkts * avg_pkt_size
-        avg_dur = float(rng.uniform(0.5, 15.0))
+        avg_dur = float(rng.uniform(0.5, 60.0))                # ΕΩΣ 60s (μακρόβιες ροές)
         total_packets = flow_count * avg_pkts
         total_bytes = flow_count * avg_bytes
         short_ratio = float(np.clip(rng.normal(0.06, 0.06), 0, 0.3))  # ΛΙΓΕΣ σύντομες

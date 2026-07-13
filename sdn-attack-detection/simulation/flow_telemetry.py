@@ -20,6 +20,13 @@ avg_duration και short_flow_ratio ήταν εκφυλισμένα.
 import re
 from collections import defaultdict
 
+# Άνω φράγμα στη διάρκεια ροής που στέλνεται ως χαρακτηριστικό. Το dump-flows και
+# το OFPFlowStats αναφέρουν τη ΣΩΡΕΥΤΙΚΗ ζωή της ροής, η οποία μεγαλώνει επ'
+# αόριστον για μακρόβιες ροές. Ένα αχαλίνωτο, μονότονα αυξανόμενο μέγεθος είναι
+# κακό χαρακτηριστικό· το φράζουμε ώστε "μακρόβια σταθερή ροή" να αντιστοιχεί σε
+# μία σταθερή τιμή, εντός της κατανομής στην οποία εκπαιδεύεται το ζωντανό μοντέλο.
+DURATION_CAP = 60.0
+
 # Γραμμή του `ovs-ofctl dump-flows` που ταιριάζει σε IPv4 ροή με nw_src/nw_dst.
 _DUR   = re.compile(r"duration=([\d.]+)s")
 _NPK   = re.compile(r"n_packets=(\d+)")
@@ -73,7 +80,7 @@ def window_deltas(curr_flows, prev_by_key):
         dby = max(0, f["bytes"] - prev["bytes"])
         new_prev[key] = {"packets": f["packets"], "bytes": f["bytes"]}
         if dpk > 0:
-            per_source[f["nw_src"]].append((dpk, dby, f["duration"]))
+            per_source[f["nw_src"]].append((dpk, dby, min(f["duration"], DURATION_CAP)))
     return dict(per_source), new_prev
 
 
@@ -91,5 +98,5 @@ def flowstats_to_telemetry(flow_stats):
             continue
         per_source[src].append((int(s.get("packets", 0)),
                                 int(s.get("bytes", 0)),
-                                float(s.get("duration", 0.0))))
+                                min(float(s.get("duration", 0.0)), DURATION_CAP)))
     return dict(per_source)
