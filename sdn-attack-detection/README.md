@@ -272,6 +272,8 @@ pytest tests/ -v         # 131 tests: 123 pass, 8 skip χωρίς Docker/live st
 θα δεις `InconsistentVersionWarning`· λύνεται είτε τηρώντας το
 `requirements.txt` είτε αναδημιουργώντας τα μοντέλα με `bash run_all.sh`.
 
+**Ακριβής αναπαραγωγιμότητα**: για δεσμευμένες εκδόσεις χρησιμοποίησε το `requirements-lock.txt` (exact pins, π.χ. scikit-learn==1.9.0). Το `MANIFEST.sha256` περιέχει SHA-256 hashes των μοντέλων, του συνθετικού dataset και των κύριων αρχείων αποτελεσμάτων, ώστε να επαληθεύεται η ταυτότητα των artifacts.
+
 ---
 
 ## 7. Επίσημα αποτελέσματα — αντιστοίχιση με το κείμενο της διπλωματικής
