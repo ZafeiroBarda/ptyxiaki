@@ -33,7 +33,9 @@ import seaborn as sns
 
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import (RandomizedSearchCV, StratifiedKFold,
+                                     StratifiedGroupKFold)
 from sklearn.metrics import roc_auc_score, f1_score, make_scorer
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -183,28 +185,42 @@ def tune_random_forest(use_insdn=False, n_iter=25):
     print(" ΒΕΛΤΙΣΤΟΠΟΙΗΣΗ RANDOM FOREST (supervised)")
     print("=" * 64)
 
+    # Group-aware, leakage-resistant tuning: δουλεύουμε στα ΑΚΑΤΕΡΓΑΣΤΑ
+    # χαρακτηριστικά, με το scaling μέσα σε Pipeline (ανά fold) και group split
+    # ώστε τα ακριβή διπλότυπα διανύσματα να μη μοιράζονται μεταξύ των CV folds.
     df = preprocess.load_insdn() if use_insdn else preprocess.load_synthetic()
-    data = preprocess.prepare(df, scale=True)
-    X_train, y_train = data["X_train"], data["y_train"]
-    X_test, y_test = data["X_test"], data["y_test"]
+    feats = [c for c in config.FEATURE_COLUMNS if c in df.columns]
+    X_all = df[feats].astype(float).values
+    from sklearn.preprocessing import LabelEncoder
+    y_all = LabelEncoder().fit_transform(df[config.LABEL_COL].values)
+    groups = preprocess.feature_hash_groups(X_all)
+
+    # Ανεξάρτητος διαχωρισμός train/test με ομαδοποίηση διπλότυπων· η αναζήτηση
+    # γίνεται με group-CV ΜΟΝΟ στο train, η τελική τιμή μετριέται στο test.
+    tr_idx, te_idx, _ = preprocess.group_train_test_split(
+        X_all, y_all, config.TEST_SIZE, config.RANDOM_STATE)
+    X_train, y_train, g_train = X_all[tr_idx], y_all[tr_idx], groups[tr_idx]
+    X_test, y_test = X_all[te_idx], y_all[te_idx]
 
     param_dist = {
-        "n_estimators": [100, 200, 300, 500],
-        "max_depth": [10, 20, 30, None],
-        "min_samples_split": [2, 5, 10],
-        "min_samples_leaf": [1, 2, 4],
-        "max_features": ["sqrt", "log2", 0.5],
+        "model__n_estimators": [100, 200, 300, 500],
+        "model__max_depth": [10, 20, 30, None],
+        "model__min_samples_split": [2, 5, 10],
+        "model__min_samples_leaf": [1, 2, 4],
+        "model__max_features": ["sqrt", "log2", 0.5],
     }
-    cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=config.RANDOM_STATE)
+    cv = StratifiedGroupKFold(n_splits=3, shuffle=True, random_state=config.RANDOM_STATE)
     scorer = make_scorer(f1_score, average="macro")
 
-    rf = RandomForestClassifier(random_state=config.RANDOM_STATE, n_jobs=-1)
+    pipe = Pipeline([("scaler", StandardScaler()),
+                     ("model", RandomForestClassifier(
+                         random_state=config.RANDOM_STATE, n_jobs=-1))])
     search = RandomizedSearchCV(
-        rf, param_dist, n_iter=n_iter, scoring=scorer, cv=cv,
+        pipe, param_dist, n_iter=n_iter, scoring=scorer, cv=cv,
         random_state=config.RANDOM_STATE, n_jobs=-1, verbose=1)
-    print(f"[*] RandomizedSearchCV: {n_iter} διαμορφώσεις x 3-fold...")
+    print(f"[*] RandomizedSearchCV (StratifiedGroupKFold): {n_iter} διαμορφώσεις x 3-fold...")
     t0 = time.perf_counter()
-    search.fit(X_train, y_train)
+    search.fit(X_train, y_train, groups=g_train)
     print(f"    Ολοκληρώθηκε σε {time.perf_counter()-t0:.0f}s")
 
     best = search.best_estimator_
@@ -213,7 +229,8 @@ def tune_random_forest(use_insdn=False, n_iter=25):
     print(search.best_params_)
     print(f"CV F1 (macro): {search.best_score_:.4f} | Test F1: {test_f1:.4f}")
 
-    pd.DataFrame([{**search.best_params_,
+    clean_params = {k.replace("model__", ""): v for k, v in search.best_params_.items()}
+    pd.DataFrame([{**clean_params,
                    "cv_f1": search.best_score_, "test_f1": test_f1}]).to_csv(
         os.path.join(config.RESULTS_DIR, "rf_tuning.csv"), index=False)
 

@@ -68,11 +68,18 @@ def test_summary_covers_all_scenarios():
 @pytest.mark.skipif(not os.path.exists(os.path.join(LIVE, "experiment_summary.csv")),
                     reason="experiment_summary.csv δεν έχει παραχθεί")
 def test_experiment_type_is_declared():
-    """Μόνο η πλημμύρα SYN είναι πείραμα σε επίπεδο πακέτου."""
+    """Τα σενάρια του run_live_experiments.sh είναι ΟΛΑ API-level.
+
+    Το packet-level πείραμα είναι αποκλειστικά το mininet_live.py (docker
+    compose), που γράφει ξεχωριστό summary στο results/live/mininet_run_*/.
+    Ο aggregator δεν πρέπει να χαρακτηρίζει κανένα σενάριο ως packet_level με
+    βάση το όνομά του.
+    """
     df = pd.read_csv(os.path.join(LIVE, "experiment_summary.csv"))
     assert set(df["experiment_type"]) <= {"packet_level", "api_telemetry"}
-    pkt = set(df.loc[df["experiment_type"] == "packet_level", "scenario"])
-    assert pkt == {"ddos_syn_flood"}, f"Απροσδόκητα packet-level σενάρια: {pkt}"
+    assert set(df["experiment_type"]) == {"api_telemetry"}, (
+        "Το experiment_summary.csv δεν πρέπει να δηλώνει packet_level για "
+        "τα σενάρια crafted τηλεμετρίας")
 
 
 @pytest.mark.parametrize("path", sorted(glob.glob(os.path.join(LIVE, "*.json"))),

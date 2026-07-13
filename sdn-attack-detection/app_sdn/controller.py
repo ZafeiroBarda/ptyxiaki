@@ -187,7 +187,8 @@ _rate_lock = threading.Lock()
 _LIVE_CSV = os.path.join(BASE, "data", "live_mininet_flows.csv")
 _CSV_HEADER = ["timestamp", "src_ip", "dst_ip", "packets", "bytes",
                "flow_count", "packet_rate", "byte_rate", "short_flow_ratio",
-               "avg_pkt_size", "verdict", "action", "anomaly_score", "scenario"]
+               "avg_duration", "avg_pkt_size", "verdict", "action",
+               "anomaly_score", "scenario"]
 _csv_lock = threading.Lock()
 _csv_initialized = False
 
@@ -385,7 +386,6 @@ def telemetry():
     action = flow_table.action_for(src)
 
     # ── Live CSV export ────────────────────────────────────────────────────────
-    duration_s = feats[3] if len(feats) > 3 else 0
     try:
         _append_csv({
             "timestamp":       round(now, 2),
@@ -397,7 +397,9 @@ def telemetry():
             "packet_rate":     round(float(feats[1]), 3),
             "byte_rate":       round(float(feats[2]), 3),
             "short_flow_ratio":round(float(feats[7]), 3) if len(feats) > 7 else 0,
-            "avg_pkt_size":    round(float(feats[5]), 1) if len(feats) > 5 else 0,
+            # feats[5]=avg_duration, feats[6]=avg_pkt_size (config.LIVE_FEATURE_COLUMNS)
+            "avg_duration":    round(float(feats[5]), 3) if len(feats) > 5 else 0,
+            "avg_pkt_size":    round(float(feats[6]), 1) if len(feats) > 6 else 0,
             "verdict":         verdict,
             "action":          action,
             "anomaly_score":   round(anomaly_score, 4) if anomaly_score is not None else "",

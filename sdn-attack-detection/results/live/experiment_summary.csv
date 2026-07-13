@@ -1,7 +1,7 @@
 scenario,experiment_type,duration_s,detection_latency_s,true_positives,false_positives,true_negatives,false_negatives,attacker_blocked,blocked_ips,detections,success
 arp_spoof,api_telemetry,20,,0,0,4,2,True,"[""10.0.0.6""]",5,True
 data_exfiltration,api_telemetry,20,0.71,2,4,1,0,True,"[""10.0.0.1"", ""10.0.0.2"", ""10.0.0.3"", ""10.0.0.4"", ""10.0.0.6""]",10,False
-ddos_syn_flood,packet_level,60,0.9,,0,,,True,,30,
+ddos_syn_flood,api_telemetry,60,0.03,,0,,,True,,25,
 flow_exhaustion,api_telemetry,20,0.14,4,0,0,0,,"[""10.0.0.1"", ""10.0.0.2"", ""10.0.0.3"", ""10.0.0.4""]",10,True
 lateral_movement,api_telemetry,20,0.31,1,1,4,0,True,"[""10.0.0.3"", ""10.0.0.6""]",3,False
-port_scan,api_telemetry,20,0.24,2,0,4,0,True,"[""10.0.0.6""]",2,True
+port_scan,api_telemetry,60,0.17,6,0,4,0,True,"[""10.0.0.6""]",7,True

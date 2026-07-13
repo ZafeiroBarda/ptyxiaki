@@ -40,8 +40,14 @@ SCHEMA = [
     "success",              # όπως το δηλώνει το ίδιο το σενάριο
 ]
 
-# Μόνο η πλημμύρα SYN εκτελείται σε επίπεδο πακέτου (Mininet/OVS).
-PACKET_LEVEL = {"ddos_syn_flood"}
+# ΣΗΜΑΝΤΙΚΟ: ΟΛΑ τα σενάρια του run_live_experiments.sh στέλνουν κατασκευασμένη
+# τηλεμετρία απευθείας στο /telemetry — είναι API-level, ΣΥΜΠΕΡΙΛΑΜΒΑΝΟΜΕΝΟΥ του
+# DDoS. Το experiment_type ΔΕΝ πρέπει να συμπεραίνεται από το όνομα του σεναρίου.
+# Το μόνο πραγματικά packet-level πείραμα είναι το mininet_live.py (docker
+# compose), το οποίο γράφει το δικό του summary.json στο results/live/mininet_run_*/.
+# Αν ένα σενάριο δηλώνει ρητά experiment_type στο δικό του JSON, τιμάται· αλλιώς
+# θεωρείται api_telemetry.
+DEFAULT_TYPE = "api_telemetry"
 
 
 def norm(v):
@@ -78,7 +84,7 @@ def load_records():
 def to_schema(name, d):
     return {
         "scenario":            name,
-        "experiment_type":     "packet_level" if name in PACKET_LEVEL else "api_telemetry",
+        "experiment_type":     d.get("experiment_type", DEFAULT_TYPE),
         "duration_s":          norm(d.get("duration_s", d.get("duration"))),
         "detection_latency_s": norm(d.get("detection_latency_s")),
         "true_positives":      norm(d.get("true_positives")),

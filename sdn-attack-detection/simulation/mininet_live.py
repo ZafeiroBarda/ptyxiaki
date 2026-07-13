@@ -167,15 +167,26 @@ def read_iface_rx(iface):
         return 0, 0
 
 
-def install_drop_flow(src_ip, bridge="s1"):
-    """Inject a high-priority DROP flow directly into OVS (bypasses controller)."""
+# Ίδιο TTL με τον κανόνα του ελεγκτή (controller.py: flow_table.install ttl=10),
+# ώστε control plane και data plane να λήγουν συγχρονισμένα και να μην αποκλίνει
+# η κατάσταση: ο OVS κανόνας αυτο-διαγράφεται μέσω hard_timeout.
+BLOCK_TTL = int(os.environ.get("BLOCK_TTL", "10"))
+
+
+def install_drop_flow(src_ip, bridge="s1", hard_timeout=BLOCK_TTL):
+    """Inject a high-priority DROP flow directly into OVS (bypasses controller).
+
+    Ο κανόνας φέρει hard_timeout ίσο με το TTL του ελεγκτή, ώστε να λήγει μόνος
+    του και να μη μένει η πηγή μπλοκαρισμένη στο data plane αφότου ο ελεγκτής
+    θεωρεί τον κανόνα ληγμένο.
+    """
     r = subprocess.run(
         ["ovs-ofctl", "add-flow", bridge,
-         f"priority=100,ip,nw_src={src_ip},actions=drop"],
+         f"priority=100,ip,nw_src={src_ip},hard_timeout={hard_timeout},actions=drop"],
         capture_output=True, text=True,
     )
     if r.returncode == 0:
-        print(f"[OVS]  DROP flow installed: {src_ip}", flush=True)
+        print(f"[OVS]  DROP flow installed: {src_ip} (hard_timeout={hard_timeout}s)", flush=True)
     else:
         print(f"[OVS]  DROP failed for {src_ip}: {r.stderr.strip()}", flush=True)
 

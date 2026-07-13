@@ -148,6 +148,7 @@ DETECTION_TIME=""
 # Send attack via dashboard sim control (if Mininet running) or direct telemetry
 curl -sf -X POST "$CONTROLLER/simulate/command" \
     -H "Content-Type: application/json" \
+    -H "X-Admin-Token: $ADMIN_TOKEN" \
     -d "{\"cmd\":\"start\",\"attackers\":[\"h6\"],\"victim\":\"h5\",\"attack_type\":\"${ATTACK_TYPE}\"}" \
     > /dev/null 2>&1 || true
 
@@ -181,6 +182,7 @@ ATTACK_DURATION=$(( ATTACK_END - ATTACK_START ))
 # Stop attack
 curl -sf -X POST "$CONTROLLER/simulate/command" \
     -H "Content-Type: application/json" \
+    -H "X-Admin-Token: $ADMIN_TOKEN" \
     -d '{"cmd":"stop"}' > /dev/null 2>&1 || true
 
 ok "Attack phase complete (${ATTACK_DURATION}s)"

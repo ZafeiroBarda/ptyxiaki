@@ -55,6 +55,7 @@ class RyuBridge(app_manager.RyuApp):
         self.mac_to_port  = {}   # {dpid: {mac: port}}
         self.datapaths    = {}   # {dpid: datapath}
         self.blocked_ips  = set()
+        self._block_expiry = {}   # src_ip -> χρόνος λήξης του DROP (συγχρονισμός data plane)
         # ανά παράθυρο: src_ip -> {dsts: set, pkts: int, bytes: int} (fallback)
         self._window      = {}
         # per-flow στατιστικά από OFPFlowStatsReply: (src,dst) -> {packets,bytes}
@@ -79,9 +80,10 @@ class RyuBridge(app_manager.RyuApp):
                        [parser.OFPActionOutput(ofp.OFPP_CONTROLLER, ofp.OFPCML_NO_BUFFER)])
         self.logger.info("[BRIDGE] Switch %s συνδέθηκε.", dp.id)
         try:
+            # Το /register απαιτεί πλέον έγκυρο switch token (DEFENSE_MODE).
             requests.post(f"{CONTROLLER_URL}/register",
                           json={"node_id": f"s{dp.id}", "type": "switch", "ip": "0.0.0.0"},
-                          timeout=3)
+                          headers=_AUTH_HEADERS, timeout=3)
         except Exception:
             pass
 
@@ -160,10 +162,25 @@ class RyuBridge(app_manager.RyuApp):
     # ------------------------------------------------------------------ #
     #  Polling loop
     # ------------------------------------------------------------------ #
+    def _purge_expired_blocks(self):
+        """Αφαιρεί από το blocked_ips τις πηγές των οποίων ο κανόνας DROP έληξε.
+
+        Ο κανόνας OpenFlow αυτο-διαγράφεται με hard_timeout, αλλά το λογικό
+        blocked_ips δεν καθαριζόταν, οπότε μια πηγή έμενε μπλοκαρισμένη επ'
+        αόριστον στη μνήμη του bridge ακόμη κι αφού η ροή είχε λήξει.
+        """
+        now = time.time()
+        expired = [ip for ip, t in self._block_expiry.items() if now >= t]
+        for ip in expired:
+            self.blocked_ips.discard(ip)
+            self._block_expiry.pop(ip, None)
+            self.logger.info("[BRIDGE] Λήξη αποκλεισμού: %s", ip)
+
     def _poll_loop(self):
         hub.sleep(10)  # αναμονή για τοπολογία
         while True:
             hub.sleep(POLL_INTERVAL)
+            self._purge_expired_blocks()
             # Πρωτεύον: ζήτα per-flow στατιστικά από κάθε μεταγωγέα.
             # Η τηλεμετρία αποστέλλεται στον flow_stats_reply_handler.
             requested = False
@@ -249,6 +266,7 @@ class RyuBridge(app_manager.RyuApp):
             action = r.json().get("action", "FORWARD")
             if action == "DROP" and src_ip not in self.blocked_ips:
                 self.blocked_ips.add(src_ip)
+                self._block_expiry[src_ip] = time.time() + 60
                 for dp in self.datapaths.values():
                     self._install_drop(dp, src_ip)
                 self.logger.warning("[BRIDGE] %s → DROP (60s)", src_ip)
