@@ -70,7 +70,7 @@ sdn-attack-detection/
 ```bash
 pip install -r requirements.txt
 bash run_all.sh            # ML + DL + CV/ROC + adversarial — αναπαράγει τα αποτελέσματα του κειμένου
-pytest tests/ -v           # 81 tests: 73 pass, 8 skip χωρίς Docker/live stack
+pytest tests/ -v           # 131 tests: 123 pass, 8 skip χωρίς Docker/live stack
 ```
 Λεπτομέρειες αναπαραγωγιμότητας: **§6**.
 
@@ -102,8 +102,8 @@ python3 ml_pipeline/isolation_forest_detector.py --insdn
 
 Σημαντικό εύρημα: τα network flow features είναι **log-normal**· ο λογαριθμικός μετασχηματισμός (`log1p`) ανεβάζει το Isolation Forest από **AUC 0.70 → 0.93** στα πραγματικά δεδομένα. Το BFA είναι η δυσκολότερη κλάση (F1≈0.71) λόγω ελάχιστων δειγμάτων (1.405 από 343k).
 
-> **Περιορισμός (δηλώνεται και στο κείμενο):** το 51,7% των εγγραφών του InSDN
-> είναι ακριβή διπλότυπα σε επίπεδο διανύσματος χαρακτηριστικών (99,3% στην
+> **Περιορισμός (δηλώνεται και στο κείμενο):** το 47,5% των εγγραφών του InSDN
+> είναι ακριβή διπλότυπα σε επίπεδο διανύσματος χαρακτηριστικών (98,8% στην
 > κλάση DDoS), κάτι εγγενές στις επιθέσεις πλημμύρας. Με τυχαίο διαχωρισμό,
 > πανομοιότυπα διανύσματα εμφανίζονται σε train και test, γεγονός που ευνοεί
 > την απομνημόνευση και ανεβάζει την ορθότητα. Γι' αυτό το **macro-F1** είναι
@@ -248,7 +248,7 @@ python3 controller/train_live_model.py --collected
 ```bash
 pip install -r requirements.txt
 bash run_all.sh          # <- ΑΥΤΟ αναπαράγει τους πίνακες/σχήματα του κειμένου
-pytest tests/ -v         # 81 tests: 73 pass, 8 skip χωρίς Docker/live stack
+pytest tests/ -v         # 131 tests: 123 pass, 8 skip χωρίς Docker/live stack
 ```
 
 **Το `bash run_all.sh` χωρίς ορίσματα** παράγει το συνθετικό dataset στην

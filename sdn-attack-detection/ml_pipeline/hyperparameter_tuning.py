@@ -144,10 +144,11 @@ def tune_isolation_forest(use_insdn=False):
     print(f"    ROC-AUC = {test_auc:.4f} | F1 = {test_f1:.4f}")
     print(f"    (validation ROC-AUC της ίδιας διαμόρφωσης: {best['val_roc_auc']:.4f})")
 
-    res["test_roc_auc"] = ""
-    res.loc[0, "test_roc_auc"] = round(test_auc, 4)
-    res["test_f1"] = ""
-    res.loc[0, "test_f1"] = round(test_f1, 4)
+    # Η τελική τιμή του test αφορά ΜΟΝΟ τη βέλτιστη διαμόρφωση (πρώτη γραμμή)·
+    # οι υπόλοιπες μένουν κενές. Χτίζουμε τις στήλες ως λίστες object ώστε να
+    # αποφευχθεί το σφάλμα ανάθεσης float σε string column (pandas 3.x).
+    res["test_roc_auc"] = [round(test_auc, 4)] + [None] * (len(res) - 1)
+    res["test_f1"] = [round(test_f1, 4)] + [None] * (len(res) - 1)
     res.to_csv(os.path.join(config.RESULTS_DIR, "isolation_forest_tuning.csv"), index=False)
 
     # Αποθήκευση του μοντέλου της βέλτιστης (κατά validation) διαμόρφωσης
