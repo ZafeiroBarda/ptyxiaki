@@ -157,6 +157,33 @@ def get_ovs_flow_stats(bridge="s1"):
         return ""
 
 
+def get_drop_rule_packets(src_ip, bridge="s1"):
+    """Επιστρέφει το n_packets του DROP κανόνα (priority=100) για την πηγή.
+
+    Αποτελεί ΑΜΕΣΗ απόδειξη ότι ο κανόνας απόρριψης έκοψε πραγματικά πακέτα στο
+    data plane (και όχι απλώς ότι εγκαταστάθηκε). Επιστρέφει None αν ο κανόνας
+    δεν υπάρχει (π.χ. έχει λήξει μέσω hard_timeout).
+    """
+    for line in get_ovs_flow_stats(bridge).splitlines():
+        if f"nw_src={src_ip}" in line and "actions=drop" in line:
+            m = re.search(r"n_packets=(\d+)", line)
+            if m:
+                return int(m.group(1))
+    return None
+
+
+def ping_rtt(host, target_ip, count=5):
+    """Μέση καθυστέρηση (ms) του ping host->target· None αν δεν υπάρχει σύνδεση."""
+    try:
+        out = host.cmd(f"ping -c {count} -w {count+2} {target_ip}")
+        m = re.search(r"= [\d.]+/([\d.]+)/", out)
+        loss = re.search(r"(\d+)% packet loss", out)
+        return {"avg_rtt_ms": float(m.group(1)) if m else None,
+                "loss_pct": int(loss.group(1)) if loss else 100}
+    except Exception:
+        return {"avg_rtt_ms": None, "loss_pct": 100}
+
+
 def read_iface_rx(iface):
     """Fallback: read rx_packets + rx_bytes from /sys/class/net."""
     try:
@@ -438,15 +465,23 @@ def main():
             )
 
             deadline = time.time() + ATTACK_PHASE
+            max_drop_pkts = 0     # ΜΕΓΙΣΤΟΣ μετρητής του DROP κανόνα (απόδειξη drops)
             while time.time() < deadline:
                 for h in legit:
                     h.cmd(f"ping -c 20 -i 0.2 -q {victim_ip} > /dev/null 2>&1 &")
                 time.sleep(5)
                 elapsed = int(time.time() - (deadline - ATTACK_PHASE))
                 s_now = get_stats()
+                dp = get_drop_rule_packets(attacker_ip)
+                if dp is not None:
+                    max_drop_pkts = max(max_drop_pkts, dp)
                 print(f"[LIVE] C{cycle} Phase 2 — {elapsed}s/{ATTACK_PHASE}s | "
                       f"detections: {s_now['total_detections']} | "
-                      f"DROP: {s_now['drop_rules']}", flush=True)
+                      f"DROP: {s_now['drop_rules']} | "
+                      f"dropped_pkts: {dp if dp is not None else '—'}", flush=True)
+
+            # Καθυστέρηση/απώλεια ping νόμιμου host ΚΑΤΑ την επίθεση (θύμα-πλευρά)
+            rtt_during = ping_rtt(legit[0], victim_ip)
 
             hosts["h6"].cmd("pkill hping3 2>/dev/null; true")
 
@@ -456,8 +491,16 @@ def main():
             fp      = any(h.IP() in ft for h in legit)
             print(f"\n[LIVE] C{cycle} result: "
                   f"{'✅ attacker blocked' if blocked else '⚠️ NOT blocked'} | "
+                  f"dropped_pkts={max_drop_pkts} | "
                   f"{'✅ no FP' if not fp else '⚠️ FP on legit host'}\n",
                   flush=True)
+            _run_evidence = {
+                "cycle": cycle, "attacker_ip": attacker_ip,
+                "controller_flow_table_blocked": blocked,
+                "ovs_drop_rule_max_packets": max_drop_pkts,
+                "false_positive_on_legit": fp,
+                "legit_ping_during_attack": rtt_during,
+            }
 
             # ── Check loop exit condition ────────────────────────────────────
             if LOOP_CYCLES > 0 and cycle >= LOOP_CYCLES:
@@ -499,6 +542,38 @@ def main():
     stats = get_stats()
     print(f"\n[LIVE] Total cycles: {cycle} | "
           f"Total detections: {stats['total_detections']}", flush=True)
+
+    # ── Πλήρες summary του run (απόδειξη 4.3) ──────────────────────────────────
+    # Ping μετά την αποκατάσταση: επιβεβαιώνει ότι το δίκτυο επανήλθε για τους
+    # νόμιμους hosts αφού λήξει/αρθεί ο κανόνας απόρριψης.
+    rtt_after = ping_rtt(legit[0], victim_ip) if 'legit' in dir() else None
+    try:
+        import json
+        run_dir = os.path.join(BASE, "results", "live",
+                               f"mininet_run_{time.strftime('%Y%m%d_%H%M%S')}")
+        os.makedirs(run_dir, exist_ok=True)
+        # στιγμιότυπο πίνακα ροών (raw)
+        with open(os.path.join(run_dir, "ovs_dump_flows.txt"), "w") as f:
+            f.write(get_ovs_flow_stats())
+        summary = {
+            "run_id": os.path.basename(run_dir),
+            "experiment_type": "packet_level",
+            "topology": "Mininet 6 hosts + OVS s1 (userspace, standalone)",
+            "attack_tool": "hping3 --syn --flood",
+            "loop_cycles": LOOP_CYCLES,
+            "total_cycles": cycle,
+            "total_detections": stats.get("total_detections"),
+            "last_cycle_evidence": _run_evidence if '_run_evidence' in dir() else None,
+            "legit_ping_after_recovery": rtt_after,
+            "note": ("ovs_drop_rule_max_packets > 0 αποδεικνύει ΠΡΑΓΜΑΤΙΚΗ απόρριψη "
+                     "πακέτων στο data plane· το ping μετά την αποκατάσταση δείχνει "
+                     "επαναφορά της νόμιμης συνδεσιμότητας."),
+        }
+        with open(os.path.join(run_dir, "summary.json"), "w") as f:
+            json.dump(summary, f, ensure_ascii=False, indent=2)
+        print(f"[LIVE] Summary γράφτηκε: {run_dir}/summary.json", flush=True)
+    except Exception as e:
+        print(f"[LIVE] Αποτυχία εγγραφής summary: {e}", flush=True)
 
     # ── Cleanup ───────────────────────────────────────────────────────────────
     print("\n[LIVE] Stopping Mininet...", flush=True)
