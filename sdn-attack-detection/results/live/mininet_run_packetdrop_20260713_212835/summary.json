@@ -1,0 +1,20 @@
+{
+  "run_id": "mininet_run_packetdrop_20260713_212835",
+  "experiment_type": "packet_level",
+  "timestamp": "2026-07-13T21:28:35.430696",
+  "topology": "Mininet 6 hosts + OVS s1 (userspace, standalone), docker compose",
+  "attack_tool": "hping3 --syn --flood",
+  "loop_cycles": 1,
+  "ovs_drop_rule_max_packets": 178998,
+  "attacker_blocked": true,
+  "false_positive_on_legit": false,
+  "legit_verdicts": {
+    "Normal": 112,
+    "Attack(FP)": 0
+  },
+  "attacker_verdicts": {
+    "Attack": 10
+  },
+  "result_line": "✅ attacker blocked | dropped_pkts=178998 | ✅ no FP",
+  "note": "ΑΠΟΔΕΙΞΗ 4.3: ovs_drop_rule_max_packets αντλήθηκε από ovs-ofctl dump-flows και δείχνει ΠΡΑΓΜΑΤΙΚΗ απόρριψη πακέτων στο data plane, όχι απλώς εγκατάσταση κανόνα. Ο κανόνας λήγει μέσω hard_timeout=10s (συγχρονισμός με controller TTL)."
+}

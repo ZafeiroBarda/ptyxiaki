@@ -24,6 +24,7 @@ import time
 
 import requests
 
+BASE            = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONTROLLER_URL  = os.environ.get("CONTROLLER_URL",  "http://controller:9000")
 SWITCH_API_KEY  = os.environ.get("SWITCH_API_KEY",  "sdn-secret-2024")
 NORMAL_PHASE    = int(os.environ.get("NORMAL_PHASE",    "30"))

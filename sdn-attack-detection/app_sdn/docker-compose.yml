@@ -83,7 +83,7 @@ services:
       - NORMAL_PHASE=30
       - ATTACK_PHASE=30
       - RECOVERY_PHASE=20
-      - LOOP_CYCLES=0
+      - LOOP_CYCLES=${LOOP_CYCLES:-0}
       - PYTHONUNBUFFERED=1
     depends_on:
       controller:
@@ -120,7 +120,7 @@ services:
       - NORMAL_PHASE=30
       - ATTACK_PHASE=30
       - RECOVERY_PHASE=20
-      - LOOP_CYCLES=0
+      - LOOP_CYCLES=${LOOP_CYCLES:-0}
       - RYU_OFP_PORT=6653
       - PYTHONUNBUFFERED=1
     depends_on:
