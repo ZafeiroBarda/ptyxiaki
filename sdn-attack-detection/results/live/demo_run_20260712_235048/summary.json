@@ -1,0 +1,12 @@
+{
+  "run_id":           "demo_run_20260712_235048",
+  "scenario":         "syn_flood h6 -> h5",
+  "attack_type":      "syn",
+  "timestamp":        "2026-07-12T23:52:14+03:00",
+  "detection_time":   "1s",
+  "attacker_blocked": "NO",
+  "false_positives":  0,
+  "total_detections": 6,
+  "new_detections":   6,
+  "dashboard_url":    "http://localhost:8050"
+}
