@@ -1,0 +1,252 @@
+ * /etc/openvswitch/conf.db does not exist
+2026-07-14T18:46:07Z|00001|vlog|INFO|opened log file /var/log/openvswitch/ovs-vswitchd.log
+ * Creating empty database /etc/openvswitch/conf.db
+ * Starting ovsdb-server
+ * Configuring Open vSwitch system IDs
+ * Starting ovs-vswitchd
+ * Enabling remote OVSDB managers
+ovs-vswitchd: /var/run/openvswitch/ovs-vswitchd.pid: already running as pid 65, aborting
+[LIVE] Waiting for Flask controller (http://controller:9000)...
+[LIVE] Controller OK — Defense Engine: Isolation Forest
+[LIVE] Controller state reset.
+[LIVE] Building Mininet topology (6 hosts, 1 OVS switch)...
+[LIVE] h1-h4 legit | h5=10.0.0.5 victim | h6=10.0.0.6 attacker
+[OVS]  Εγκαταστάθηκαν 30 κανόνες ροής ανά ζεύγος (per-flow stats)
+*** Error setting resource limits. Mininet's performance may be affected.
+[LIVE] Hosts registered.
+
+[LIVE] Demo loop: 1 cycle(s)
+
+============================================================
+  CYCLE 1 · PHASE 1: Normal traffic (20s)
+============================================================
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 1 — 5s/20s
+[TELEM] 10.0.0.1      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 1 — 10s/20s
+[TELEM] 10.0.0.1      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    13  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    13  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    13  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    13  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 1 — 15s/20s
+[TELEM] 10.0.0.1      flows=  1  pkts=     8  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     8  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     8  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     8  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 1 — 20s/20s
+
+[LIVE] End Phase 1 — detections: 0 | DROP: 0
+
+============================================================
+  CYCLE 1 · PHASE 2: SYN flood h6 → h5 (60s)
+============================================================
+[TELEM] 10.0.0.1      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.6      flows=  1  pkts= 22410  verdict=Attack  action=DROP
+[OVS]  DROP installed: 10.0.0.6 (hard_timeout=10s, lease #1, σύνολο απορριφθέντων=0)
+[TELEM] 10.0.0.1      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 2 — 5s/60s | detections: 1 | DROP: 1 | rule=ACTIVE | leases=1 | dropped_pkts(total)=88784
+[TELEM] 10.0.0.1      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=     8  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     8  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 2 — 10s/60s | detections: 1 | DROP: 1 | rule=ACTIVE | leases=1 | dropped_pkts(total)=192961
+[TELEM] 10.0.0.3      flows=  1  pkts=     8  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     8  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.6      flows=  1  pkts= 11715  verdict=Attack  action=DROP
+[OVS]  DROP REINSTALLED (lease had expired): 10.0.0.6 (hard_timeout=10s, lease #2, σύνολο απορριφθέντων=227713)
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 2 — 15s/60s | detections: 2 | DROP: 1 | rule=ACTIVE | leases=2 | dropped_pkts(total)=284471
+[TELEM] 10.0.0.1      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 2 — 20s/60s | detections: 2 | DROP: 1 | rule=ACTIVE | leases=2 | dropped_pkts(total)=400281
+[TELEM] 10.0.0.1      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.6      flows=  1  pkts= 11644  verdict=Attack  action=DROP
+[OVS]  DROP REINSTALLED (lease had expired): 10.0.0.6 (hard_timeout=10s, lease #3, σύνολο απορριφθέντων=458212)
+[LIVE] C1 Phase 2 — 25s/60s | detections: 3 | DROP: 1 | rule=ACTIVE | leases=3 | dropped_pkts(total)=500510
+[TELEM] 10.0.0.1      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=     9  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     9  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     9  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     9  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 2 — 30s/60s | detections: 3 | DROP: 1 | rule=ACTIVE | leases=3 | dropped_pkts(total)=616225
+[TELEM] 10.0.0.1      flows=  1  pkts=     6  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     6  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     6  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     6  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.6      flows=  1  pkts= 11681  verdict=Attack  action=DROP
+[OVS]  DROP REINSTALLED (lease had expired): 10.0.0.6 (hard_timeout=10s, lease #4, σύνολο απορριφθέντων=685793)
+[LIVE] C1 Phase 2 — 35s/60s | detections: 4 | DROP: 1 | rule=ACTIVE | leases=4 | dropped_pkts(total)=705915
+[TELEM] 10.0.0.1      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 2 — 40s/60s | detections: 4 | DROP: 1 | rule=ACTIVE | leases=4 | dropped_pkts(total)=821781
+[TELEM] 10.0.0.1      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.6      flows=  1  pkts= 11672  verdict=Attack  action=DROP
+[OVS]  DROP REINSTALLED (lease had expired): 10.0.0.6 (hard_timeout=10s, lease #5, σύνολο απορριφθέντων=914492)
+[LIVE] C1 Phase 2 — 45s/60s | detections: 5 | DROP: 1 | rule=ACTIVE | leases=5 | dropped_pkts(total)=914492
+[TELEM] 10.0.0.1      flows=  1  pkts=     9  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     9  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     9  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     9  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 2 — 50s/60s | detections: 5 | DROP: 1 | rule=ACTIVE | leases=5 | dropped_pkts(total)=1037348
+[TELEM] 10.0.0.1      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     5  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    10  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 2 — 55s/60s | detections: 5 | DROP: 0 | rule=expired | leases=5 | dropped_pkts(total)=1141659
+[TELEM] 10.0.0.1      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.6      flows=  1  pkts= 11707  verdict=Attack  action=DROP
+[OVS]  DROP REINSTALLED (lease had expired): 10.0.0.6 (hard_timeout=10s, lease #6, σύνολο απορριφθέντων=1141659)
+[TELEM] 10.0.0.1      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=    12  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.1      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.2      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.3      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[TELEM] 10.0.0.4      flows=  1  pkts=     7  verdict=Normal  action=FORWARD
+[LIVE] C1 Phase 2 — 60s/60s | detections: 6 | DROP: 1 | rule=ACTIVE | leases=6 | dropped_pkts(total)=1240919
+
+[LIVE] C1 result: ✅ attacker blocked | dropped_pkts=1333599 | leases=6 (renewals=5) | mitigation coverage=91.4% της επίθεσης (93.6% μετά την ανίχνευση) | ✅ no FP
+[LIVE] C1 latencies (s from attack start): {'first_malicious_telemetry_s': 1.28, 'first_verdict_s': 1.32, 'rule_installed_s': 1.33, 'first_dropped_packet_s': 1.476}
+
+
+[LIVE] Total cycles: 1 | Total detections: 6
+[LIVE] Summary γράφτηκε: /app/results/live/mininet_run_20260714_184742/summary.json
+[ARTIFACT] summary.json <<<
+{"run_id": "mininet_run_20260714_184742", "experiment_type": "packet_level", "timestamp": "2026-07-14T18:47:42", "code_commit": "83f89a4", "topology": "Mininet 6 hosts + OVS s1 (userspace, standalone)", "attack_tool": "hping3 --syn --flood", "config": {"normal_phase_s": 20, "attack_phase_s": 60, "recovery_phase_s": 10, "telemetry_interval_s": 2, "block_ttl_s": 10, "block_renew_margin_s": 3, "attack_ongoing_pps": 999999999, "loop_cycles": 1}, "total_cycles": 1, "total_detections": 6, "last_cycle_evidence": {"cycle": 1, "attacker_ip": "10.0.0.6", "controller_flow_table_blocked": true, "attack_duration_s": 64.19, "ovs_drop_rule_total_packets": 1333599, "drop_rule_leases": 6, "drop_rule_renewals": 5, "block_ttl_s": 10, "mitigation_coverage_pct": 91.4, "mitigation_coverage_after_detection_pct": 93.6, "coverage_samples": 128, "latencies_s": {"first_malicious_telemetry_s": 1.28, "first_verdict_s": 1.32, "rule_installed_s": 1.33, "first_dropped_packet_s": 1.476}, "false_positive_on_legit": false, "legit_ping_during_attack": {"avg_rtt_ms": 4.216, "loss_pct": 0}}, "legit_ping_after_recovery": {"avg_rtt_ms": 4.471, "loss_pct": 0}, "note": "ovs_drop_rule_total_packets > 0 αποδεικνύει ΠΡΑΓΜΑΤΙΚΗ απόρριψη πακέτων στο data plane και όχι απλώς εγκατάσταση κανόνα. Το lease του κανόνα λήγει μέσω hard_timeout=10s και ΑΝΑΝΕΩΝΕΤΑΙ όσο η πηγή εξακολουθεί να κρίνεται κακόβουλη, οπότε το mitigation_coverage_pct δείχνει το ποσοστό της επίθεσης που καλύφθηκε από ενεργό κανόνα. Οι καθυστερήσεις είναι monotonic μετρήσεις από τη στιγμή εκκίνησης της επίθεσης. Το ping μετά την αποκατάσταση δείχνει επαναφορά της νόμιμης συνδεσιμότητας."}
+[ARTIFACT] >>>
+[ARTIFACT] ovs_dump_flows.txt <<<
+NXST_FLOW reply (xid=0x4):
+ cookie=0x0, duration=88.347s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.1,nw_dst=10.0.0.2 actions=NORMAL
+ cookie=0x0, duration=88.343s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.1,nw_dst=10.0.0.3 actions=NORMAL
+ cookie=0x0, duration=88.340s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.1,nw_dst=10.0.0.4 actions=NORMAL
+ cookie=0x0, duration=88.337s, table=0, n_packets=329, n_bytes=32242, idle_age=1, priority=10,ip,nw_src=10.0.0.1,nw_dst=10.0.0.5 actions=NORMAL
+ cookie=0x0, duration=88.334s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.1,nw_dst=10.0.0.6 actions=NORMAL
+ cookie=0x0, duration=88.330s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.2,nw_dst=10.0.0.1 actions=NORMAL
+ cookie=0x0, duration=88.328s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.2,nw_dst=10.0.0.3 actions=NORMAL
+ cookie=0x0, duration=88.324s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.2,nw_dst=10.0.0.4 actions=NORMAL
+ cookie=0x0, duration=88.321s, table=0, n_packets=320, n_bytes=31360, idle_age=9, priority=10,ip,nw_src=10.0.0.2,nw_dst=10.0.0.5 actions=NORMAL
+ cookie=0x0, duration=88.317s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.2,nw_dst=10.0.0.6 actions=NORMAL
+ cookie=0x0, duration=88.314s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.3,nw_dst=10.0.0.1 actions=NORMAL
+ cookie=0x0, duration=88.310s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.3,nw_dst=10.0.0.2 actions=NORMAL
+ cookie=0x0, duration=88.307s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.3,nw_dst=10.0.0.4 actions=NORMAL
+ cookie=0x0, duration=88.303s, table=0, n_packets=320, n_bytes=31360, idle_age=9, priority=10,ip,nw_src=10.0.0.3,nw_dst=10.0.0.5 actions=NORMAL
+ cookie=0x0, duration=88.300s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.3,nw_dst=10.0.0.6 actions=NORMAL
+ cookie=0x0, duration=88.297s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.4,nw_dst=10.0.0.1 actions=NORMAL
+ cookie=0x0, duration=88.293s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.4,nw_dst=10.0.0.2 actions=NORMAL
+ cookie=0x0, duration=88.290s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.4,nw_dst=10.0.0.3 actions=NORMAL
+ cookie=0x0, duration=88.286s, table=0, n_packets=320, n_bytes=31360, idle_age=9, priority=10,ip,nw_src=10.0.0.4,nw_dst=10.0.0.5 actions=NORMAL
+ cookie=0x0, duration=88.284s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.4,nw_dst=10.0.0.6 actions=NORMAL
+ cookie=0x0, duration=88.280s, table=0, n_packets=329, n_bytes=32242, idle_age=1, priority=10,ip,nw_src=10.0.0.5,nw_dst=10.0.0.1 actions=NORMAL
+ cookie=0x0, duration=88.277s, table=0, n_packets=320, n_bytes=31360, idle_age=9, priority=10,ip,nw_src=10.0.0.5,nw_dst=10.0.0.2 actions=NORMAL
+ cookie=0x0, duration=88.274s, table=0, n_packets=320, n_bytes=31360, idle_age=9, priority=10,ip,nw_src=10.0.0.5,nw_dst=10.0.0.3 actions=NORMAL
+ cookie=0x0, duration=88.271s, table=0, n_packets=320, n_bytes=31360, idle_age=9, priority=10,ip,nw_src=10.0.0.5,nw_dst=10.0.0.4 actions=NORMAL
+ cookie=0x0, duration=88.268s, table=0, n_packets=87000, n_bytes=4698000, idle_age=12, priority=10,ip,nw_src=10.0.0.5,nw_dst=10.0.0.6 actions=NORMAL
+ cookie=0x0, duration=88.265s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.6,nw_dst=10.0.0.1 actions=NORMAL
+ cookie=0x0, duration=88.262s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.6,nw_dst=10.0.0.2 actions=NORMAL
+ cookie=0x0, duration=88.259s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.6,nw_dst=10.0.0.3 actions=NORMAL
+ cookie=0x0, duration=88.256s, table=0, n_packets=0, n_bytes=0, idle_age=88, priority=10,ip,nw_src=10.0.0.6,nw_dst=10.0.0.4 actions=NORMAL
+ cookie=0x0, duration=88.253s, table=0, n_packets=80829, n_bytes=4364766, idle_age=12, priority=10,ip,nw_src=10.0.0.6,nw_dst=10.0.0.5 actions=NORMAL
+ cookie=0x0, duration=91.504s, table=0, n_packets=122, n_bytes=7048, idle_age=0, priority=0 actions=NORMAL
+
+[ARTIFACT] >>>
+
+[LIVE] Stopping Mininet...
+[LIVE] Done.

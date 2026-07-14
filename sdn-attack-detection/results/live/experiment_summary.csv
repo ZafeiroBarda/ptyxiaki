@@ -1,7 +1,11 @@
-scenario,experiment_type,duration_s,detection_latency_s,true_positives,false_positives,true_negatives,false_negatives,attacker_blocked,blocked_ips,detections,success
-arp_spoof,api_telemetry,20,,0,0,4,2,True,"[""10.0.0.6""]",5,True
-data_exfiltration,api_telemetry,20,0.71,2,4,1,0,True,"[""10.0.0.1"", ""10.0.0.2"", ""10.0.0.3"", ""10.0.0.4"", ""10.0.0.6""]",10,False
-ddos_syn_flood,api_telemetry,60,0.03,,0,,,True,,25,
-flow_exhaustion,api_telemetry,20,0.14,4,0,0,0,,"[""10.0.0.1"", ""10.0.0.2"", ""10.0.0.3"", ""10.0.0.4""]",10,True
-lateral_movement,api_telemetry,20,0.31,1,1,4,0,True,"[""10.0.0.3"", ""10.0.0.6""]",3,False
-port_scan,api_telemetry,60,0.17,6,0,4,0,True,"[""10.0.0.6""]",7,True
+scenario,experiment_type,duration_s,detection_latency_s,true_positives,false_positives,true_negatives,false_negatives,attacker_blocked,blocked_ips,detections,success,run_id,code_commit,rule_install_latency_s,first_dropped_packet_s,dropped_packets,drop_rule_leases,drop_rule_renewals,block_ttl_s,mitigation_coverage_pct,renewal_enabled,mitigation_coverage_after_detection_pct
+arp_spoof,api_telemetry,20.0,,0.0,0,4.0,2.0,True,"[""10.0.0.6""]",5,True,,,,,,,,,,,
+data_exfiltration,api_telemetry,20.0,0.71,2.0,4,1.0,0.0,True,"[""10.0.0.1"", ""10.0.0.2"", ""10.0.0.3"", ""10.0.0.4"", ""10.0.0.6""]",10,False,,,,,,,,,,,
+ddos_syn_flood,api_telemetry,60.0,0.03,,0,,,True,,25,,,,,,,,,,,,
+flow_exhaustion,api_telemetry,20.0,0.14,4.0,0,0.0,0.0,,"[""10.0.0.1"", ""10.0.0.2"", ""10.0.0.3"", ""10.0.0.4""]",10,True,,,,,,,,,,,
+lateral_movement,api_telemetry,20.0,0.31,1.0,1,4.0,0.0,True,"[""10.0.0.3"", ""10.0.0.6""]",3,False,,,,,,,,,,,
+port_scan,api_telemetry,60.0,0.17,6.0,0,4.0,0.0,True,"[""10.0.0.6""]",7,True,,,,,,,,,,,
+ddos_syn_flood,packet_level,64.19,1.32,,0,,,True,,6,True,mininet_run_20260714_184742,83f89a4,1.33,1.476,1333599.0,6.0,5.0,10.0,91.4,False,93.6
+ddos_syn_flood,packet_level,64.17,1.727,,0,,,True,,2,True,mininet_run_20260714_184950,83f89a4,1.745,1.983,1415331.0,21.0,20.0,5.0,96.9,True,100.0
+ddos_syn_flood,packet_level,64.21,1.372,,0,,,True,,1,True,mininet_run_20260714_185158,83f89a4,1.382,1.48,1458553.0,5.0,4.0,20.0,97.7,True,100.0
+ddos_syn_flood,packet_level,64.2,1.162,,0,,,True,,1,True,mininet_run_20260714_184311,83f89a4,1.169,1.479,1456155,9,8,10,97.7,True,100.0

@@ -20,10 +20,16 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(BASE, "results")
 LIVE = os.path.join(RESULTS, "live")
 
-SUMMARY_SCHEMA = [
+# Στήλες που κάθε γραμμή (API-level ή packet-level) οφείλει να έχει. Οι packet-level
+# γραμμές προσθέτουν επιπλέον στήλες προέλευσης (run_id, code_commit, coverage κ.λπ.),
+# οπότε ο έλεγχος είναι υποσύνολο και όχι ακριβής ισότητα.
+SUMMARY_CORE_COLUMNS = [
     "scenario", "experiment_type", "duration_s", "detection_latency_s",
-    "true_positives", "false_positives", "true_negatives", "false_negatives",
-    "attacker_blocked", "blocked_ips", "detections", "success",
+    "attacker_blocked", "detections", "success",
+]
+# Στήλες προέλευσης που ΠΡΕΠΕΙ να φέρει κάθε packet-level γραμμή (απαίτηση 4.7).
+PACKET_PROVENANCE_COLUMNS = [
+    "run_id", "code_commit", "dropped_packets", "mitigation_coverage_pct",
 ]
 
 
@@ -48,9 +54,10 @@ def test_live_csv_parses(path):
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(LIVE, "experiment_summary.csv")),
                     reason="experiment_summary.csv δεν έχει παραχθεί")
-def test_summary_has_fixed_schema():
+def test_summary_has_core_columns():
     df = pd.read_csv(os.path.join(LIVE, "experiment_summary.csv"))
-    assert list(df.columns) == SUMMARY_SCHEMA, f"Λάθος σχήμα: {list(df.columns)}"
+    missing = [c for c in SUMMARY_CORE_COLUMNS if c not in df.columns]
+    assert not missing, f"Λείπουν βασικές στήλες: {missing}"
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(LIVE, "experiment_summary.csv")),
@@ -68,18 +75,34 @@ def test_summary_covers_all_scenarios():
 @pytest.mark.skipif(not os.path.exists(os.path.join(LIVE, "experiment_summary.csv")),
                     reason="experiment_summary.csv δεν έχει παραχθεί")
 def test_experiment_type_is_declared():
-    """Τα σενάρια του run_live_experiments.sh είναι ΟΛΑ API-level.
+    """Κάθε γραμμή δηλώνει ρητά τον τύπο του πειράματος (api_telemetry ή packet_level).
 
-    Το packet-level πείραμα είναι αποκλειστικά το mininet_live.py (docker
-    compose), που γράφει ξεχωριστό summary στο results/live/mininet_run_*/.
-    Ο aggregator δεν πρέπει να χαρακτηρίζει κανένα σενάριο ως packet_level με
-    βάση το όνομά του.
+    Το ενιαίο summary συνδυάζει τις δύο διαδρομές, οπότε ο τύπος πρέπει να είναι πάντα
+    δηλωμένος και έγκυρος, ώστε να μη συγχέονται οι API-level με τις packet-level
+    μετρήσεις (η σύγχυσή τους ήταν το πρόβλημα 4.3/4.7).
     """
     df = pd.read_csv(os.path.join(LIVE, "experiment_summary.csv"))
-    assert set(df["experiment_type"]) <= {"packet_level", "api_telemetry"}
-    assert set(df["experiment_type"]) == {"api_telemetry"}, (
-        "Το experiment_summary.csv δεν πρέπει να δηλώνει packet_level για "
-        "τα σενάρια crafted τηλεμετρίας")
+    assert set(df["experiment_type"]) <= {"packet_level", "api_telemetry"}, (
+        f"Μη έγκυρος τύπος πειράματος: {set(df['experiment_type'])}")
+    assert df["experiment_type"].notna().all(), "Υπάρχει γραμμή χωρίς experiment_type"
+
+
+@pytest.mark.skipif(not os.path.exists(os.path.join(LIVE, "experiment_summary.csv")),
+                    reason="experiment_summary.csv δεν έχει παραχθεί")
+def test_packet_level_row_has_provenance():
+    """Το packet-level πείραμα εμφανίζεται στο ενιαίο summary με πλήρη προέλευση (4.7).
+
+    Αν υπάρχει έστω μία packet_level γραμμή, οφείλει να φέρει run_id, code_commit,
+    αριθμό απορριφθέντων πακέτων και κάλυψη αντιμετώπισης, ώστε κάθε νούμερο να ανάγεται
+    σε συγκεκριμένη εκτέλεση και commit.
+    """
+    df = pd.read_csv(os.path.join(LIVE, "experiment_summary.csv"))
+    packet = df[df["experiment_type"] == "packet_level"]
+    if packet.empty:
+        pytest.skip("δεν έχει καταγραφεί ακόμη packet-level run")
+    for col in PACKET_PROVENANCE_COLUMNS:
+        assert col in df.columns, f"Λείπει στήλη προέλευσης: {col}"
+        assert packet[col].notna().all(), f"packet_level γραμμή χωρίς {col}"
 
 
 @pytest.mark.parametrize("path", sorted(glob.glob(os.path.join(LIVE, "*.json"))),

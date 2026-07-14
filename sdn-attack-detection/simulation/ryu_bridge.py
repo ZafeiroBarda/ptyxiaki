@@ -42,6 +42,10 @@ except ImportError:
 CONTROLLER_URL  = os.environ.get("CONTROLLER_URL",  "http://controller:9000")
 SWITCH_API_KEY  = os.environ.get("SWITCH_API_KEY",  "sdn-secret-2024")
 POLL_INTERVAL   = int(os.environ.get("POLL_INTERVAL", "5"))
+# ΚΟΙΝΟ TTL με τον Flask controller και το mininet_live: ο κανόνας OpenFlow δεν
+# επιτρέπεται να ζει περισσότερο από όσο ο ελεγκτής θεωρεί ότι ζει, αλλιώς η
+# κατάσταση control plane και data plane αποκλίνει.
+BLOCK_TTL       = int(os.environ.get("BLOCK_TTL", "10"))
 SHORT_FLOW_PKT_THRESHOLD = 3   # ροή με <= τόσα packets θεωρείται "σύντομη" (flood)
 
 _AUTH_HEADERS = {"X-Switch-Token": SWITCH_API_KEY, "Content-Type": "application/json"}
@@ -264,19 +268,28 @@ class RyuBridge(app_manager.RyuApp):
                 timeout=3,
             )
             action = r.json().get("action", "FORWARD")
-            if action == "DROP" and src_ip not in self.blocked_ips:
-                self.blocked_ips.add(src_ip)
-                self._block_expiry[src_ip] = time.time() + 60
-                for dp in self.datapaths.values():
-                    self._install_drop(dp, src_ip)
-                self.logger.warning("[BRIDGE] %s → DROP (60s)", src_ip)
+            if action == "DROP":
+                # (Επαν)εγκατάσταση όταν δεν υπάρχει ενεργό lease, ή ΑΝΑΝΕΩΣΗ όταν το
+                # lease πρόκειται να λήξει ενώ η πηγή εξακολουθεί να κρίνεται κακόβουλη.
+                # Χωρίς την ανανέωση, ο κανόνας θα έληγε μετά από BLOCK_TTL και η
+                # επίθεση θα συνεχιζόταν ανεμπόδιστη για το υπόλοιπο της διάρκειάς της.
+                expiry  = self._block_expiry.get(src_ip, 0.0)
+                renewal = src_ip in self.blocked_ips
+                if not renewal or time.time() >= expiry - POLL_INTERVAL:
+                    self.blocked_ips.add(src_ip)
+                    self._block_expiry[src_ip] = time.time() + BLOCK_TTL
+                    for dp in self.datapaths.values():
+                        self._install_drop(dp, src_ip)
+                    self.logger.warning("[BRIDGE] %s → DROP (%ds, %s)", src_ip, BLOCK_TTL,
+                                        "ανανέωση" if renewal else "νέο lease")
             elif action == "FORWARD" and src_ip in self.blocked_ips:
                 # block λήξε στον controller → αφαίρεσε από local set
                 self.blocked_ips.discard(src_ip)
+                self._block_expiry.pop(src_ip, None)
         except Exception as e:
             self.logger.debug("[BRIDGE] telemetry error %s: %s", src_ip, e)
 
-    def _install_drop(self, dp, src_ip, ttl=60):
+    def _install_drop(self, dp, src_ip, ttl=BLOCK_TTL):
         parser = dp.ofproto_parser
         match  = parser.OFPMatch(eth_type=0x0800, ipv4_src=src_ip)
         self._add_flow(dp, 100, match, [], hard_timeout=ttl)

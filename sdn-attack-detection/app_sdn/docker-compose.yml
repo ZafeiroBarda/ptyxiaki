@@ -23,6 +23,7 @@ services:
       - SWITCH_API_KEY=sdn-secret-2024
       - ADMIN_API_KEY=sdn-admin-2024
       - DEFENSE_MODE=1          # ενεργή άμυνα: telemetry χωρίς έγκυρο token -> 401
+      - BLOCK_TTL=${BLOCK_TTL:-10}   # κοινό TTL του κανόνα DROP σε όλα τα μονοπάτια
     ports:
       - "9000:9000"          # REST API (southbound)
     networks: [sdn_net]
@@ -80,10 +81,14 @@ services:
       - CONTROLLER_URL=http://controller:9000
       - SWITCH_API_KEY=sdn-secret-2024
       - ADMIN_API_KEY=sdn-admin-2024
-      - NORMAL_PHASE=30
-      - ATTACK_PHASE=30
-      - RECOVERY_PHASE=20
+      - NORMAL_PHASE=${NORMAL_PHASE:-30}
+      - ATTACK_PHASE=${ATTACK_PHASE:-30}
+      - RECOVERY_PHASE=${RECOVERY_PHASE:-20}
       - LOOP_CYCLES=${LOOP_CYCLES:-0}
+      - BLOCK_TTL=${BLOCK_TTL:-10}
+      - BLOCK_RENEW_MARGIN=${BLOCK_RENEW_MARGIN:-3}
+      - ATTACK_ONGOING_PPS=${ATTACK_ONGOING_PPS:-50}
+      - CODE_COMMIT=${CODE_COMMIT:-unknown}
       - PYTHONUNBUFFERED=1
     depends_on:
       controller:
@@ -117,10 +122,14 @@ services:
       - CONTROLLER_URL=http://controller:9000
       - SWITCH_API_KEY=sdn-secret-2024
       - ADMIN_API_KEY=sdn-admin-2024
-      - NORMAL_PHASE=30
-      - ATTACK_PHASE=30
-      - RECOVERY_PHASE=20
+      - NORMAL_PHASE=${NORMAL_PHASE:-30}
+      - ATTACK_PHASE=${ATTACK_PHASE:-30}
+      - RECOVERY_PHASE=${RECOVERY_PHASE:-20}
       - LOOP_CYCLES=${LOOP_CYCLES:-0}
+      - BLOCK_TTL=${BLOCK_TTL:-10}
+      - BLOCK_RENEW_MARGIN=${BLOCK_RENEW_MARGIN:-3}
+      - ATTACK_ONGOING_PPS=${ATTACK_ONGOING_PPS:-50}
+      - CODE_COMMIT=${CODE_COMMIT:-unknown}
       - RYU_OFP_PORT=6653
       - PYTHONUNBUFFERED=1
     depends_on:

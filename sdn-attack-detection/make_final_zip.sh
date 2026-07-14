@@ -21,13 +21,18 @@ ROOT = "sdn-attack-detection-final"
 INCLUDE_FILES = [
     "README.md", "requirements.txt", "run_all.sh", "run_live_experiments.sh",
     "demo_10min.sh", "make_final_zip.sh", ".gitignore",
+    # Αναπαραγωγιμότητα: αναφέρονται στο README και στο Παράρτημα Α, οπότε ΠΡΕΠΕΙ να
+    # συνοδεύουν την παράδοση. Έλειπαν από το zip, δίνοντας την εντύπωση ότι δεν
+    # υπάρχουν καθόλου κλείδωμα εκδόσεων και επαλήθευση artifacts.
+    "requirements-lock.txt", "MANIFEST.sha256", "RESULTS_VERIFICATION.md",
+    "reproduce_thesis.sh", "run_packet_level_experiment.sh",
     "data/README_DATA.md",
     "docs/Diplomatiki_Full.pdf",
     "docs/Τεχνική_Αναφορά_Μοντέλα_και_Ροή_Δεδομένων.pdf",
     "docs/architecture_mapping.md",
 ]
 INCLUDE_DIRS = ["app_sdn", "ml_pipeline", "simulation", "controller",
-                "tests", "models", "results"]
+                "tests", "models", "results", "scripts", "docs/figures"]
 EXCLUDE_PARTS = ("__pycache__", ".pytest_cache", "BACKUP", "USEREDIT", "~$")
 EXCLUDE_EXT = (".pyc", ".pyo")
 

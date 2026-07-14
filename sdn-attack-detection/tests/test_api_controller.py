@@ -203,3 +203,31 @@ def test_anomaly_scores_endpoint(client):
     r = client.get("/anomaly_scores")
     assert r.status_code == 200
     assert isinstance(r.get_json(), dict)
+
+
+# ── /enforcement ──────────────────────────────────────────────────────────────
+# Ο μπλοκαρισμένος κόμβος παύει να στέλνει ροές, οπότε η εγγραφή του ελεγκτή θα έληγε
+# ενώ ο κανόνας στο data plane ανανεωνόταν. Το endpoint κρατά τις δύο όψεις σύμφωνες.
+def test_enforcement_installs_drop_rule(client):
+    r = client.post("/enforcement",
+                    json={"src": "10.0.0.6", "action": "DROP", "renewal": False},
+                    headers=HEADERS_AUTH)
+    assert r.status_code == 200
+    assert r.get_json()["src"] == "10.0.0.6"
+    assert client.get("/flow_table").get_json()["10.0.0.6"]["action"] == "DROP"
+
+
+def test_enforcement_renewal_keeps_host_blocked(client):
+    client.post("/enforcement", json={"src": "10.0.0.6", "action": "DROP"},
+                headers=HEADERS_AUTH)
+    r = client.post("/enforcement",
+                    json={"src": "10.0.0.6", "action": "DROP",
+                          "renewal": True, "dropped_packets": 123456},
+                    headers=HEADERS_AUTH)
+    assert r.status_code == 200
+    assert client.get("/flow_table").get_json()["10.0.0.6"]["action"] == "DROP"
+
+
+def test_enforcement_requires_src(client):
+    r = client.post("/enforcement", json={"action": "DROP"}, headers=HEADERS_AUTH)
+    assert r.status_code == 400

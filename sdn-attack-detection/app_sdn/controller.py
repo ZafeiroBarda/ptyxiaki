@@ -44,6 +44,11 @@ ADMIN_API_KEY  = os.environ.get("ADMIN_API_KEY",  "sdn-admin-2024")
 RATE_LIMIT_MAX    = int(os.environ.get("RATE_LIMIT_MAX",    "120"))
 RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))
 
+# Διάρκεια ζωής (lease) του κανόνα DROP. ΚΟΙΝΗ μεταβλητή για όλα τα μονοπάτια
+# επιβολής (Flask flow table, ovs-ofctl στο mininet_live, Ryu/OpenFlow bridge),
+# ώστε control plane και data plane να λήγουν την ίδια στιγμή.
+BLOCK_TTL = int(os.environ.get("BLOCK_TTL", "10"))
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(BASE, "ml_pipeline"))
 import config
@@ -382,7 +387,10 @@ def telemetry():
             pass
 
     if verdict == "Attack" and flow_table.action_for(src) != "DROP":
-        flow_table.install(src, "DROP", priority=100, ttl=10)
+        # Το lease λήγει μετά από BLOCK_TTL δευτερόλεπτα. Αν η επίθεση συνεχίζεται,
+        # η επόμενη τηλεμετρία με verdict=Attack το ξαναεγκαθιστά (action_for()
+        # επιστρέφει FORWARD μόλις λήξει), οπότε ο αποκλεισμός ανανεώνεται.
+        flow_table.install(src, "DROP", priority=100, ttl=BLOCK_TTL)
         gnv.set_node_status(src, "blocked")
         log_event(f"🚨 ΑΝΩΜΑΛΙΑ από {src} (flows={int(feats[0])}, "
                   f"short_ratio={feats[7]:.2f}) -> DROP rule")
@@ -473,6 +481,41 @@ def get_anomaly_scores():
     """Latest IF anomaly score per host IP (lower = more anomalous, threshold ~0)."""
     with _scores_lock:
         return jsonify(dict(_anomaly_scores))
+
+
+@app.route("/enforcement", methods=["POST"])
+def enforcement():
+    """Ο μεταγωγέας αναφέρει ότι (επαν)εγκατέστησε κανόνα DROP στο data plane.
+
+    Μόλις μια πηγή αποκλειστεί, η κίνησή της απορρίπτεται και παύει να εμφανίζεται ως
+    ροή, οπότε ο ελεγκτής δεν λαμβάνει πλέον τηλεμετρία γι' αυτήν και το δικό του lease
+    θα έληγε, ενώ ο κανόνας στο data plane θα εξακολουθούσε να ανανεώνεται. Το endpoint
+    κρατά τις δύο όψεις συγχρονισμένες: ο μεταγωγέας δηλώνει την επιβολή που όντως
+    εφαρμόζει και ο ελεγκτής ανανεώνει αντίστοιχα την εγγραφή του.
+
+    ΔΕΝ αποτελεί νέα ανίχνευση: η απόφαση έχει ήδη ληφθεί από το μοντέλο.
+    """
+    if DEFENSE_MODE:
+        token = request.headers.get("X-Switch-Token", "")
+        if token != SWITCH_API_KEY:
+            log_event(f"⛔ Μη εξουσιοδοτημένη πρόσβαση από {request.remote_addr} "
+                      f"στο /enforcement")
+            return jsonify({"error": "Unauthorized: X-Switch-Token required"}), 401
+
+    data = request.get_json(silent=True) or {}
+    src  = data.get("src")
+    if not src:
+        return jsonify({"error": "src required"}), 400
+    if data.get("action", "DROP") != "DROP":
+        return jsonify({"error": "only DROP is reported"}), 400
+
+    renewal = bool(data.get("renewal"))
+    flow_table.install(src, "DROP", priority=100, ttl=BLOCK_TTL)
+    gnv.set_node_status(src, "blocked")
+    if renewal:
+        log_event(f"🔁 Ανανέωση κανόνα DROP για {src} "
+                  f"(η επίθεση συνεχίζεται, {data.get('dropped_packets', '?')} πακέτα)")
+    return jsonify({"status": "enforced", "src": src, "ttl": BLOCK_TTL})
 
 
 @app.route("/unblock", methods=["POST"])

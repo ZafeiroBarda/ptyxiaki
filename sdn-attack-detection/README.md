@@ -69,8 +69,8 @@ sdn-attack-detection/
 ### Γρήγορη εκκίνηση (μία εντολή, οποιοδήποτε OS)
 ```bash
 pip install -r requirements.txt
-bash run_all.sh            # ML + DL + CV/ROC + adversarial — αναπαράγει τα αποτελέσματα του κειμένου
-pytest tests/ -v           # 131 tests: 123 pass, 8 skip χωρίς Docker/live stack
+bash reproduce_thesis.sh   # ΠΛΗΡΗΣ αναπαραγωγή· bash run_all.sh για μόνο τον κορμό ML/DL/CV/adversarial
+pytest tests/ -v           # 140 tests: 133 pass, 7 skip χωρίς Docker/προαιρετικές εξαρτήσεις
 ```
 Λεπτομέρειες αναπαραγωγιμότητας: **§6**.
 
@@ -247,14 +247,27 @@ python3 ml_pipeline/evaluate.py                      # εκπαιδεύει, σ�
 
 ```bash
 pip install -r requirements.txt
-bash run_all.sh          # <- ΑΥΤΟ αναπαράγει τους πίνακες/σχήματα του κειμένου
-pytest tests/ -v         # 131 tests: 123 pass, 8 skip χωρίς Docker/live stack
+bash reproduce_thesis.sh          # <- ΠΛΗΡΗΣ αναπαραγωγή ΟΛΩΝ των αποτελεσμάτων
+bash run_all.sh                   # μόνο ο βασικός κορμός (ML/DL/CV/adversarial)
+bash run_packet_level_experiment.sh   # packet-level πείραμα (Mininet+OVS, απαιτεί Docker)
+pytest tests/ -v                  # 140 tests: 133 pass, 7 skip χωρίς Docker/προαιρετικές εξαρτήσεις
 ```
 
-**Το `bash run_all.sh` χωρίς ορίσματα** παράγει το συνθετικό dataset στην
-**προεπιλεγμένη** του εκδοχή και αναπαράγει τα επίσημα αποτελέσματα. Η παραγωγή
-είναι ντετερμινιστική (σταθερό seed), οπότε το `data/sdn_flows_synthetic.csv`
-αναδημιουργείται **bit-for-bit** — γι' αυτό δεν συμπεριλαμβάνεται στο zip.
+**Πλήρης έναντι βασικής αναπαραγωγής**: το `bash run_all.sh` τρέχει τον κορμό
+(dataset, κλασικά μοντέλα, cross-validation, τελική σύγκριση, adversarial
+training). Δεν καλύπτει όμως τις μελέτες διαρροής, easy/hard, ρύθμισης
+υπερπαραμέτρων, Isolation Forest και SHAP, των οποίων τα αποτελέσματα
+παρουσιάζονται επίσης στο κείμενο. Το **`bash reproduce_thesis.sh`** εκτελεί
+ρητά ΟΛΑ αυτά τα βήματα και αναφέρει στο τέλος όποιο βήμα παραλείφθηκε λόγω
+προαιρετικής εξάρτησης που λείπει (π.χ. TensorFlow για το Deep Learning). Το
+packet-level πείραμα του κεφαλαίου 6 (πραγματικά dropped packets, κάλυψη
+αντιμετώπισης) τρέχει ξεχωριστά με το **`bash run_packet_level_experiment.sh`**,
+που παράγει `results/live/mininet_run_<ts>/` και προσθέτει τη γραμμή
+`packet_level` στο ενιαίο `results/live/experiment_summary.csv`.
+
+Η παραγωγή του συνθετικού dataset είναι ντετερμινιστική (σταθερό seed), οπότε
+το `data/sdn_flows_synthetic.csv` αναδημιουργείται **bit-for-bit** — γι' αυτό
+δεν συμπεριλαμβάνεται στο zip.
 
 | Εντολή | Dataset | Αντιστοιχεί στο κείμενο; |
 |---|---|---|
@@ -291,7 +304,8 @@ pytest tests/ -v         # 131 tests: 123 pass, 8 skip χωρίς Docker/live st
 | Παράρτημα Β (IF tuning) | `results/isolation_forest_tuning.csv` | `ml_pipeline/hyperparameter_tuning.py` |
 | Adversarial (Original vs Robust RF) | `results/adv_robust_*.csv` | `ml_pipeline/adversarial_training.py` |
 | Σχήματα IF confusion/ROC/scores | `results/thesis_if_*.png` | `ml_pipeline/thesis_eval.py` (stratified subsample 60k του InSDN) |
-| Live σενάρια | `results/live/*.csv` | `run_live_experiments.sh` |
+| Live σενάρια (API-level) | `results/live/*.csv` | `run_live_experiments.sh` |
+| Πίνακας 6-12 (packet-level κάλυψη, TTL sweep) | `results/live/mininet_run_*/summary.json`, `results/live/experiment_summary.csv` | `run_packet_level_experiment.sh` |
 
 Σημείωση: στο πλήρες InSDN ο KNN πετυχαίνει οριακά υψηλότερο macro-F1 (0,952)
 από το Random Forest (0,945), αλλά με χρόνο πρόβλεψης ~150× μεγαλύτερο· το

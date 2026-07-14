@@ -16,3 +16,6 @@ verify_results/
 # Τοπικές ρυθμίσεις εργαλείων & live runtime output
 .claude/
 data/live_mininet_flows.csv
+
+# Προσωρινό env του packet-level πειράματος
+.experiment.env

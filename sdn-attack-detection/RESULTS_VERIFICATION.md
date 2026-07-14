@@ -1,26 +1,57 @@
 # Results Verification — SDN Attack Detection System
 
-Live experiment results produced by `bash run_live_experiments.sh` and `bash demo_10min.sh`
-against the running Docker stack (controller at `http://localhost:9000`).
+Two distinct experiment paths, kept separate on purpose:
+
+- **API-level** scenarios: crafted telemetry sent straight to the controller REST API,
+  produced by `bash run_live_experiments.sh` and `bash demo_10min.sh`. Latencies here are
+  API-level (no real packets).
+- **Packet-level** scenario: the real Mininet + Open vSwitch stack, produced by
+  `bash run_packet_level_experiment.sh`. This is the only path with real dropped packets.
 
 ---
 
-## Experiment Run Summary
+## API-level scenarios (`run_live_experiments.sh`)
 
-| Scenario | Detection Latency | Attacker Blocked | False Positives | Result file |
+| Scenario | Detection Latency (API) | Attacker Blocked | False Positives | Result file |
 |---|---|---|---|---|
-| DDoS / SYN Flood | **0.9 s** | ✅ YES | 0 | `results/live/ddos_metrics.csv` |
+| DDoS / SYN Flood | 0.03 s (API only) | ✅ YES | 0 | `results/live/ddos_metrics.csv` |
 | Port Scan | **0.24 s** | ✅ YES | 0 | `results/live/scan_metrics.json` |
 | Data Exfiltration | **0.71 s** | ✅ YES | 4* | `results/live/exfiltration_metrics.json` |
 | Flow Table Exhaustion | **0.14 s** | ✅ YES | 0 | `results/live/flow_exhaustion_metrics.json` |
 | Lateral Movement | **0.31 s** | ✅ YES | 1* | `results/live/lateral_movement_metrics.json` |
-| ARP Spoof / MITM | N/A (volume-based) | ✅ YES | 0 | `results/live/arp_spoof_metrics.json` |
+| ARP Spoof / MITM | N/A | ⚠️ blocked via collateral activity, **not** detected (TP=0, 2 FN) | 0 | `results/live/arp_spoof_metrics.json` |
 | Legitimate only (FP test) | — | — | **0 / 4 (0%)** | `results/live/false_positive_rate.csv` |
 
 > \* False positives in data exfiltration and lateral movement are expected: high-bandwidth hosts
 > and scan-originating hosts exhibit anomalous patterns that the unsupervised Isolation Forest
 > correctly flags as outliers. This is discussed in the thesis as a known trade-off of
 > unsupervised detection.
+>
+> The ARP spoofing itself is **not** recognised by aggregate statistical detection; the attacker
+> is blocked only because of accompanying anomalous activity (see thesis §6.8.6).
+
+---
+
+## Packet-level scenario (`run_packet_level_experiment.sh`)
+
+Real hping3 SYN flood, 60 s attack, DROP rule with a 10 s lease that is **renewed** while the
+attack continues. Latencies measured with a monotonic clock from attack start. Run
+`mininet_run_20260714_184311`, commit recorded in `summary.json → code_commit`.
+
+| Metric | Value | Source |
+|---|---|---|
+| First malicious telemetry | 1.14 s | `summary.json → latencies_s` |
+| Model verdict (detection) | **1.16 s** | `summary.json → latencies_s` |
+| Rule installed | 1.17 s | `summary.json → latencies_s` |
+| First dropped packet | **1.48 s** | `summary.json → latencies_s` |
+| Total dropped packets | **1,456,155** | `ovs_dump_flows.txt` / summary |
+| DROP rule leases (renewals) | 9 (8) | `summary.json` |
+| Mitigation coverage | **97.7%** total, **100%** after detection | `summary.json` |
+| False positives on legit hosts | 0 | `summary.json` |
+| Legit ping during attack | 0% loss, ~4 ms RTT | `summary.json` |
+
+TTL sweep (5 / 10 / 20 s) and the no-renewal baseline are recorded as separate `packet_level`
+rows in `results/live/experiment_summary.csv`.
 
 ---
 
