@@ -1,0 +1,4 @@
+phase,mean_rtt_ms,max_loss_pct,cycles
+normal,4.59,0,10
+under_attack,4.39,0,10
+after_recovery,4.4,0,1

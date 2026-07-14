@@ -70,7 +70,7 @@ sdn-attack-detection/
 ```bash
 pip install -r requirements.txt
 bash reproduce_thesis.sh   # ΠΛΗΡΗΣ αναπαραγωγή· bash run_all.sh για μόνο τον κορμό ML/DL/CV/adversarial
-pytest tests/ -v           # 140 tests: 133 pass, 7 skip χωρίς Docker/προαιρετικές εξαρτήσεις
+pytest tests/ -v           # 142 tests: 135 pass, 7 skip χωρίς Docker/προαιρετικές εξαρτήσεις
 ```
 Λεπτομέρειες αναπαραγωγιμότητας: **§6**.
 
@@ -250,7 +250,7 @@ pip install -r requirements.txt
 bash reproduce_thesis.sh          # <- ΠΛΗΡΗΣ αναπαραγωγή ΟΛΩΝ των αποτελεσμάτων
 bash run_all.sh                   # μόνο ο βασικός κορμός (ML/DL/CV/adversarial)
 bash run_packet_level_experiment.sh   # packet-level πείραμα (Mininet+OVS, απαιτεί Docker)
-pytest tests/ -v                  # 140 tests: 133 pass, 7 skip χωρίς Docker/προαιρετικές εξαρτήσεις
+pytest tests/ -v                  # 142 tests: 135 pass, 7 skip χωρίς Docker/προαιρετικές εξαρτήσεις
 ```
 
 **Πλήρης έναντι βασικής αναπαραγωγής**: το `bash run_all.sh` τρέχει τον κορμό

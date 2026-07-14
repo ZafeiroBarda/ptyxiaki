@@ -1,0 +1,385 @@
+{
+  "run_id": "mininet_run_20260714_195434",
+  "experiment_type": "packet_level",
+  "timestamp": "2026-07-14T19:54:34",
+  "code_commit": "354e275",
+  "topology": "Mininet 6 hosts + OVS s1 (userspace, standalone)",
+  "attack_tool": "hping3 --syn --flood",
+  "config": {
+    "normal_phase_s": 15,
+    "attack_phase_s": 30,
+    "recovery_phase_s": 8,
+    "telemetry_interval_s": 2,
+    "block_ttl_s": 10,
+    "block_renew_margin_s": 3,
+    "attack_ongoing_pps": 50,
+    "loop_cycles": 10
+  },
+  "total_cycles": 10,
+  "total_detections": 22,
+  "last_cycle_evidence": {
+    "cycle": 10,
+    "attacker_ip": "10.0.0.6",
+    "controller_flow_table_blocked": true,
+    "attack_duration_s": 34.11,
+    "ovs_drop_rule_total_packets": 776173,
+    "drop_rule_leases": 5,
+    "drop_rule_renewals": 4,
+    "block_ttl_s": 10,
+    "mitigation_coverage_pct": 97.1,
+    "mitigation_coverage_after_detection_pct": 100.0,
+    "coverage_samples": 68,
+    "latencies_s": {
+      "first_malicious_telemetry_s": 0.742,
+      "first_verdict_s": 0.78,
+      "rule_installed_s": 0.793,
+      "first_dropped_packet_s": 1.014
+    },
+    "false_positive_on_legit": false,
+    "legit_ping_normal_phase": {
+      "avg_rtt_ms": 4.525,
+      "loss_pct": 0
+    },
+    "legit_ping_during_attack": {
+      "avg_rtt_ms": 4.346,
+      "loss_pct": 0
+    }
+  },
+  "all_cycles_evidence": [
+    {
+      "cycle": 1,
+      "attacker_ip": "10.0.0.6",
+      "controller_flow_table_blocked": true,
+      "attack_duration_s": 34.11,
+      "ovs_drop_rule_total_packets": 734758,
+      "drop_rule_leases": 5,
+      "drop_rule_renewals": 4,
+      "block_ttl_s": 10,
+      "mitigation_coverage_pct": 92.6,
+      "mitigation_coverage_after_detection_pct": 100.0,
+      "coverage_samples": 68,
+      "latencies_s": {
+        "first_malicious_telemetry_s": 2.373,
+        "first_verdict_s": 2.423,
+        "rule_installed_s": 2.438,
+        "first_dropped_packet_s": 2.477
+      },
+      "false_positive_on_legit": false,
+      "legit_ping_normal_phase": {
+        "avg_rtt_ms": 4.696,
+        "loss_pct": 0
+      },
+      "legit_ping_during_attack": {
+        "avg_rtt_ms": 4.467,
+        "loss_pct": 0
+      }
+    },
+    {
+      "cycle": 2,
+      "attacker_ip": "10.0.0.6",
+      "controller_flow_table_blocked": true,
+      "attack_duration_s": 34.12,
+      "ovs_drop_rule_total_packets": 733493,
+      "drop_rule_leases": 5,
+      "drop_rule_renewals": 4,
+      "block_ttl_s": 10,
+      "mitigation_coverage_pct": 92.6,
+      "mitigation_coverage_after_detection_pct": 100.0,
+      "coverage_samples": 68,
+      "latencies_s": {
+        "first_malicious_telemetry_s": 1.989,
+        "first_verdict_s": 2.03,
+        "rule_installed_s": 2.043,
+        "first_dropped_packet_s": 2.43
+      },
+      "false_positive_on_legit": false,
+      "legit_ping_normal_phase": {
+        "avg_rtt_ms": 4.506,
+        "loss_pct": 0
+      },
+      "legit_ping_during_attack": {
+        "avg_rtt_ms": 4.42,
+        "loss_pct": 0
+      }
+    },
+    {
+      "cycle": 3,
+      "attacker_ip": "10.0.0.6",
+      "controller_flow_table_blocked": true,
+      "attack_duration_s": 34.11,
+      "ovs_drop_rule_total_packets": 737921,
+      "drop_rule_leases": 5,
+      "drop_rule_renewals": 4,
+      "block_ttl_s": 10,
+      "mitigation_coverage_pct": 94.1,
+      "mitigation_coverage_after_detection_pct": 100.0,
+      "coverage_samples": 68,
+      "latencies_s": {
+        "first_malicious_telemetry_s": 1.754,
+        "first_verdict_s": 1.797,
+        "rule_installed_s": 1.808,
+        "first_dropped_packet_s": 1.879
+      },
+      "false_positive_on_legit": false,
+      "legit_ping_normal_phase": {
+        "avg_rtt_ms": 4.471,
+        "loss_pct": 0
+      },
+      "legit_ping_during_attack": {
+        "avg_rtt_ms": 4.306,
+        "loss_pct": 0
+      }
+    },
+    {
+      "cycle": 4,
+      "attacker_ip": "10.0.0.6",
+      "controller_flow_table_blocked": true,
+      "attack_duration_s": 34.1,
+      "ovs_drop_rule_total_packets": 743432,
+      "drop_rule_leases": 5,
+      "drop_rule_renewals": 4,
+      "block_ttl_s": 10,
+      "mitigation_coverage_pct": 94.1,
+      "mitigation_coverage_after_detection_pct": 100.0,
+      "coverage_samples": 68,
+      "latencies_s": {
+        "first_malicious_telemetry_s": 1.517,
+        "first_verdict_s": 1.569,
+        "rule_installed_s": 1.584,
+        "first_dropped_packet_s": 1.815
+      },
+      "false_positive_on_legit": false,
+      "legit_ping_normal_phase": {
+        "avg_rtt_ms": 4.59,
+        "loss_pct": 0
+      },
+      "legit_ping_during_attack": {
+        "avg_rtt_ms": 4.333,
+        "loss_pct": 0
+      }
+    },
+    {
+      "cycle": 5,
+      "attacker_ip": "10.0.0.6",
+      "controller_flow_table_blocked": true,
+      "attack_duration_s": 34.13,
+      "ovs_drop_rule_total_packets": 748488,
+      "drop_rule_leases": 5,
+      "drop_rule_renewals": 4,
+      "block_ttl_s": 10,
+      "mitigation_coverage_pct": 94.1,
+      "mitigation_coverage_after_detection_pct": 100.0,
+      "coverage_samples": 68,
+      "latencies_s": {
+        "first_malicious_telemetry_s": 1.615,
+        "first_verdict_s": 1.669,
+        "rule_installed_s": 1.682,
+        "first_dropped_packet_s": 1.842
+      },
+      "false_positive_on_legit": false,
+      "legit_ping_normal_phase": {
+        "avg_rtt_ms": 4.714,
+        "loss_pct": 0
+      },
+      "legit_ping_during_attack": {
+        "avg_rtt_ms": 4.732,
+        "loss_pct": 0
+      }
+    },
+    {
+      "cycle": 6,
+      "attacker_ip": "10.0.0.6",
+      "controller_flow_table_blocked": true,
+      "attack_duration_s": 34.12,
+      "ovs_drop_rule_total_packets": 759003,
+      "drop_rule_leases": 5,
+      "drop_rule_renewals": 4,
+      "block_ttl_s": 10,
+      "mitigation_coverage_pct": 97.1,
+      "mitigation_coverage_after_detection_pct": 100.0,
+      "coverage_samples": 68,
+      "latencies_s": {
+        "first_malicious_telemetry_s": 0.943,
+        "first_verdict_s": 0.999,
+        "rule_installed_s": 1.013,
+        "first_dropped_packet_s": 1.02
+      },
+      "false_positive_on_legit": false,
+      "legit_ping_normal_phase": {
+        "avg_rtt_ms": 4.546,
+        "loss_pct": 0
+      },
+      "legit_ping_during_attack": {
+        "avg_rtt_ms": 4.389,
+        "loss_pct": 0
+      }
+    },
+    {
+      "cycle": 7,
+      "attacker_ip": "10.0.0.6",
+      "controller_flow_table_blocked": true,
+      "attack_duration_s": 34.11,
+      "ovs_drop_rule_total_packets": 719044,
+      "drop_rule_leases": 5,
+      "drop_rule_renewals": 4,
+      "block_ttl_s": 10,
+      "mitigation_coverage_pct": 91.2,
+      "mitigation_coverage_after_detection_pct": 100.0,
+      "coverage_samples": 68,
+      "latencies_s": {
+        "first_malicious_telemetry_s": 2.835,
+        "first_verdict_s": 2.881,
+        "rule_installed_s": 2.894,
+        "first_dropped_packet_s": 2.912
+      },
+      "false_positive_on_legit": false,
+      "legit_ping_normal_phase": {
+        "avg_rtt_ms": 4.494,
+        "loss_pct": 0
+      },
+      "legit_ping_during_attack": {
+        "avg_rtt_ms": 4.267,
+        "loss_pct": 0
+      }
+    },
+    {
+      "cycle": 8,
+      "attacker_ip": "10.0.0.6",
+      "controller_flow_table_blocked": true,
+      "attack_duration_s": 34.1,
+      "ovs_drop_rule_total_packets": 735548,
+      "drop_rule_leases": 5,
+      "drop_rule_renewals": 4,
+      "block_ttl_s": 10,
+      "mitigation_coverage_pct": 92.6,
+      "mitigation_coverage_after_detection_pct": 100.0,
+      "coverage_samples": 68,
+      "latencies_s": {
+        "first_malicious_telemetry_s": 2.142,
+        "first_verdict_s": 2.185,
+        "rule_installed_s": 2.195,
+        "first_dropped_packet_s": 2.323
+      },
+      "false_positive_on_legit": false,
+      "legit_ping_normal_phase": {
+        "avg_rtt_ms": 4.449,
+        "loss_pct": 0
+      },
+      "legit_ping_during_attack": {
+        "avg_rtt_ms": 4.349,
+        "loss_pct": 0
+      }
+    },
+    {
+      "cycle": 9,
+      "attacker_ip": "10.0.0.6",
+      "controller_flow_table_blocked": true,
+      "attack_duration_s": 34.11,
+      "ovs_drop_rule_total_packets": 763048,
+      "drop_rule_leases": 5,
+      "drop_rule_renewals": 4,
+      "block_ttl_s": 10,
+      "mitigation_coverage_pct": 95.6,
+      "mitigation_coverage_after_detection_pct": 100.0,
+      "coverage_samples": 68,
+      "latencies_s": {
+        "first_malicious_telemetry_s": 1.429,
+        "first_verdict_s": 1.471,
+        "rule_installed_s": 1.486,
+        "first_dropped_packet_s": 1.521
+      },
+      "false_positive_on_legit": false,
+      "legit_ping_normal_phase": {
+        "avg_rtt_ms": 4.903,
+        "loss_pct": 0
+      },
+      "legit_ping_during_attack": {
+        "avg_rtt_ms": 4.266,
+        "loss_pct": 0
+      }
+    },
+    {
+      "cycle": 10,
+      "attacker_ip": "10.0.0.6",
+      "controller_flow_table_blocked": true,
+      "attack_duration_s": 34.11,
+      "ovs_drop_rule_total_packets": 776173,
+      "drop_rule_leases": 5,
+      "drop_rule_renewals": 4,
+      "block_ttl_s": 10,
+      "mitigation_coverage_pct": 97.1,
+      "mitigation_coverage_after_detection_pct": 100.0,
+      "coverage_samples": 68,
+      "latencies_s": {
+        "first_malicious_telemetry_s": 0.742,
+        "first_verdict_s": 0.78,
+        "rule_installed_s": 0.793,
+        "first_dropped_packet_s": 1.014
+      },
+      "false_positive_on_legit": false,
+      "legit_ping_normal_phase": {
+        "avg_rtt_ms": 4.525,
+        "loss_pct": 0
+      },
+      "legit_ping_during_attack": {
+        "avg_rtt_ms": 4.346,
+        "loss_pct": 0
+      }
+    }
+  ],
+  "aggregate": {
+    "cycles": 10,
+    "detection_rate_pct": 100.0,
+    "false_positive_cycles": 0,
+    "detection_latency_s": {
+      "n": 10,
+      "median": 1.733,
+      "mean": 1.78,
+      "p95": 2.881,
+      "std": 0.634,
+      "ci95_low": 1.388,
+      "ci95_high": 2.173
+    },
+    "first_dropped_packet_s": {
+      "n": 10,
+      "median": 1.861,
+      "mean": 1.923,
+      "p95": 2.912,
+      "std": 0.626,
+      "ci95_low": 1.535,
+      "ci95_high": 2.311
+    },
+    "mitigation_coverage_pct": {
+      "n": 10,
+      "median": 94.1,
+      "mean": 94.11,
+      "p95": 97.1,
+      "std": 1.984,
+      "ci95_low": 92.881,
+      "ci95_high": 95.339
+    },
+    "mitigation_coverage_after_detection_pct": {
+      "n": 10,
+      "median": 100.0,
+      "mean": 100.0,
+      "p95": 100.0,
+      "std": 0.0,
+      "ci95_low": 100.0,
+      "ci95_high": 100.0
+    },
+    "dropped_packets": {
+      "n": 10,
+      "median": 740676.5,
+      "mean": 745090.8,
+      "p95": 776173,
+      "std": 16860.831,
+      "ci95_low": 734640.349,
+      "ci95_high": 755541.251
+    }
+  },
+  "legit_ping_after_recovery": {
+    "avg_rtt_ms": 4.4,
+    "loss_pct": 0
+  },
+  "note": "ovs_drop_rule_total_packets > 0 αποδεικνύει ΠΡΑΓΜΑΤΙΚΗ απόρριψη πακέτων στο data plane και όχι απλώς εγκατάσταση κανόνα. Το lease του κανόνα λήγει μέσω hard_timeout=10s και ΑΝΑΝΕΩΝΕΤΑΙ όσο η πηγή εξακολουθεί να κρίνεται κακόβουλη, οπότε το mitigation_coverage_pct δείχνει το ποσοστό της επίθεσης που καλύφθηκε από ενεργό κανόνα. Οι καθυστερήσεις είναι monotonic μετρήσεις από τη στιγμή εκκίνησης της επίθεσης. Το ping μετά την αποκατάσταση δείχνει επαναφορά της νόμιμης συνδεσιμότητας."
+}

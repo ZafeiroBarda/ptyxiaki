@@ -1,0 +1,7 @@
+metric,median,mean,p95,ci95_low,ci95_high,n,unit
+detection_rate_pct,100.0,,,,,10,%
+detection_latency,1.733,1.78,2.881,1.388,2.173,10,s
+first_dropped_packet,1.861,1.923,2.912,1.535,2.311,10,s
+mitigation_coverage,94.1,94.11,97.1,92.881,95.339,10,%
+mitigation_coverage_after_detection,100.0,100.0,100.0,100.0,100.0,10,%
+dropped_packets,740676.5,745090.8,776173,734640.349,755541.251,10,packets

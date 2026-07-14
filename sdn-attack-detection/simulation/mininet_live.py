@@ -574,6 +574,56 @@ def telemetry_loop(port_to_ip, victim_ip, stop_event, drop_state,
 #  Main
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _stats(values):
+    """median, mean, p95, τυπική απόκλιση και 95% CI του μέσου για μια λίστα τιμών.
+
+    Καθαρή Python (statistics), χωρίς numpy/scipy, γιατί το mininet container έχει
+    μόνο το requests. Το CI υπολογίζεται με προσέγγιση z=1,96 (κανονική), επαρκή για
+    τον σκοπό της αναφοράς πάνω σε δέκα ή περισσότερες ανεξάρτητες εκτελέσεις.
+    """
+    import math
+    import statistics as st
+    xs = sorted(v for v in values if v is not None)
+    if not xs:
+        return None
+    n = len(xs)
+    mean = st.fmean(xs)
+    sd = st.pstdev(xs) if n < 2 else st.stdev(xs)
+    p95 = xs[min(n - 1, int(math.ceil(0.95 * n)) - 1)]
+    ci = 1.96 * sd / math.sqrt(n) if n > 1 else 0.0
+    return {"n": n, "median": round(st.median(xs), 3), "mean": round(mean, 3),
+            "p95": round(p95, 3), "std": round(sd, 3),
+            "ci95_low": round(mean - ci, 3), "ci95_high": round(mean + ci, 3)}
+
+
+def aggregate_cycles(cycles):
+    """Συγκεντρωτικές μετρικές πάνω σε πολλούς ανεξάρτητους κύκλους (πειράματα 2, 3).
+
+    Μία μόνο εκτέλεση δεν επιτρέπει διαστήματα εμπιστοσύνης· με πολλούς κύκλους
+    (LOOP_CYCLES>1) εξάγονται κατανομές για την καθυστέρηση ανίχνευσης, την κάλυψη
+    και τα απορριφθέντα πακέτα.
+    """
+    if not cycles:
+        return None
+    verdict = [c["latencies_s"].get("first_verdict_s") for c in cycles]
+    firstdrop = [c["latencies_s"].get("first_dropped_packet_s") for c in cycles]
+    cov = [c.get("mitigation_coverage_pct") for c in cycles]
+    cov_after = [c.get("mitigation_coverage_after_detection_pct") for c in cycles]
+    dropped = [c.get("ovs_drop_rule_total_packets") for c in cycles]
+    blocked = sum(1 for c in cycles if c.get("controller_flow_table_blocked"))
+    fp = sum(1 for c in cycles if c.get("false_positive_on_legit"))
+    return {
+        "cycles": len(cycles),
+        "detection_rate_pct": round(100.0 * blocked / len(cycles), 1),
+        "false_positive_cycles": fp,
+        "detection_latency_s": _stats(verdict),
+        "first_dropped_packet_s": _stats(firstdrop),
+        "mitigation_coverage_pct": _stats(cov),
+        "mitigation_coverage_after_detection_pct": _stats(cov_after),
+        "dropped_packets": _stats(dropped),
+    }
+
+
 def main():
     from mininet.net import Mininet
     from mininet.node import OVSSwitch
@@ -646,6 +696,7 @@ def main():
     cycle = 0
     _run_evidence = None   # ορίζεται πάντα, ώστε το summary να γράφεται ακόμη και
                            # αν ο βρόχος διακοπεί πριν ολοκληρωθεί ο πρώτος κύκλος
+    cycles_evidence = []   # evidence κάθε κύκλου (για στατιστική πολλαπλών runs)
     loop_label = f"{LOOP_CYCLES} cycle(s)" if LOOP_CYCLES else "∞ (Ctrl-C to stop)"
     print(f"[LIVE] Demo loop: {loop_label}\n", flush=True)
 
@@ -669,9 +720,12 @@ def main():
                 print(f"[LIVE] C{cycle} Phase 1 — {elapsed}s/{NORMAL_PHASE}s",
                       flush=True)
 
+            # RTT/απώλεια νόμιμου host ΚΑΤΑ τη φάση κανονικής κίνησης (baseline δικτύου
+            # χωρίς επίθεση, για τη μέτρηση επίδρασης στο δίκτυο — πείραμα 4).
+            rtt_normal = ping_rtt(legit[0], victim_ip)
             p1 = get_stats()
             print(f"\n[LIVE] End Phase 1 — detections: {p1['total_detections']} | "
-                  f"DROP: {p1['drop_rules']}\n", flush=True)
+                  f"DROP: {p1['drop_rules']} | rtt_normal={rtt_normal}\n", flush=True)
 
             # ── Phase 2: DDoS SYN flood ──────────────────────────────────────
             print(f"{bar}", flush=True)
@@ -776,8 +830,10 @@ def main():
                 "coverage_samples": cov["samples"],
                 "latencies_s": latencies,
                 "false_positive_on_legit": fp,
+                "legit_ping_normal_phase": rtt_normal,
                 "legit_ping_during_attack": rtt_during,
             }
+            cycles_evidence.append(_run_evidence)
 
             # ── Check loop exit condition ────────────────────────────────────
             if LOOP_CYCLES > 0 and cycle >= LOOP_CYCLES:
@@ -853,6 +909,8 @@ def main():
             "total_cycles": cycle,
             "total_detections": stats.get("total_detections"),
             "last_cycle_evidence": evidence,
+            "all_cycles_evidence": cycles_evidence,
+            "aggregate": aggregate_cycles(cycles_evidence),
             "legit_ping_after_recovery": rtt_after,
             "note": (
                 "ovs_drop_rule_total_packets > 0 αποδεικνύει ΠΡΑΓΜΑΤΙΚΗ απόρριψη πακέτων "

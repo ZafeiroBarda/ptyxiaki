@@ -53,6 +53,25 @@ attack continues. Latencies measured with a monotonic clock from attack start. R
 TTL sweep (5 / 10 / 20 s) and the no-renewal baseline are recorded as separate `packet_level`
 rows in `results/live/experiment_summary.csv`.
 
+### Repeated runs (10 independent cycles, statistical reliability)
+
+Run `mininet_run_20260714_195434`, 10 independent attack cycles. Aggregates in
+`results/live/packet_level_repeated_stats.csv`; network impact in `results/live/network_impact.csv`.
+
+| Metric | Median | Mean | p95 | 95% CI of mean |
+|---|---|---|---|---|
+| Detection rate | **100% (10/10)** | — | — | — |
+| False-positive cycles | **0 / 10** | — | — | — |
+| Detection latency (s) | 1.73 | 1.78 | 2.88 | [1.39, 2.17] |
+| First dropped packet (s) | 1.86 | 1.92 | 2.91 | [1.54, 2.31] |
+| Mitigation coverage (%) | 94.1 | 94.1 | 97.1 | [92.9, 95.3] |
+| Coverage after detection (%) | 100 | 100 | 100 | [100, 100] |
+| Dropped packets | 740,677 | 745,091 | 776,173 | [734,640, 755,541] |
+
+**Network impact (legit host):** 0% packet loss in every phase of every cycle; mean RTT ~4.6 ms
+(normal) / ~4.4 ms (under attack) / ~4.4 ms (after recovery). The mitigation isolates the
+attacker without degrading legitimate traffic, and connectivity fully recovers once the attack stops.
+
 ---
 
 ## Demo Run (demo_10min.sh)
