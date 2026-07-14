@@ -24,7 +24,7 @@ INCLUDE_FILES = [
     # Αναπαραγωγιμότητα: αναφέρονται στο README και στο Παράρτημα Α, οπότε ΠΡΕΠΕΙ να
     # συνοδεύουν την παράδοση. Έλειπαν από το zip, δίνοντας την εντύπωση ότι δεν
     # υπάρχουν καθόλου κλείδωμα εκδόσεων και επαλήθευση artifacts.
-    "requirements-lock.txt", "MANIFEST.sha256", "RESULTS_VERIFICATION.md",
+    "requirements-ml-lock.txt", "MANIFEST.sha256", "RESULTS_VERIFICATION.md",
     "reproduce_thesis.sh", "run_packet_level_experiment.sh",
     "data/README_DATA.md",
     "docs/Diplomatiki_Full.pdf",

@@ -1,7 +1,7 @@
-metric,median,mean,p95,ci95_low,ci95_high,n,unit
-detection_rate_pct,100.0,,,,,10,%
-detection_latency,1.733,1.78,2.881,1.388,2.173,10,s
-first_dropped_packet,1.861,1.923,2.912,1.535,2.311,10,s
-mitigation_coverage,94.1,94.11,97.1,92.881,95.339,10,%
-mitigation_coverage_after_detection,100.0,100.0,100.0,100.0,100.0,10,%
-dropped_packets,740676.5,745090.8,776173,734640.349,755541.251,10,packets
+metric,median,mean,p95,ci95_low,ci95_high,n,unit,ci_method
+detection_rate_pct,100.0,,,,,10,%,t
+detection_latency,1.413,1.519,2.659,1.063,1.975,10,s,t
+first_dropped_packet,1.52,1.655,2.973,1.176,2.134,10,s,t
+mitigation_coverage,95.6,95.01,97.1,93.577,96.443,10,%,t
+mitigation_coverage_after_detection,100.0,100.0,100.0,100.0,100.0,10,%,t
+dropped_packets,744845.0,746756.6,770106,736191.77,757321.43,10,packets,t

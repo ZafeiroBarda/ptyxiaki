@@ -258,8 +258,9 @@ def new_drop_state():
 
 def _lease(drop_state, src_ip):
     return drop_state["hosts"].setdefault(src_ip, {
-        "leases": 0,           # πόσες φορές εγκαταστάθηκε ο κανόνας συνολικά
-        "renewals": 0,         # πόσες από αυτές ήταν ανανεώσεις συνεχιζόμενης επίθεσης
+        "leases": 0,             # πόσες φορές εγκαταστάθηκε ο κανόνας συνολικά
+        "proactive_renewals": 0, # ανανεώσεις ΠΡΙΝ λήξει το lease (lease_keeper)
+        "reactive_reinstalls": 0,# επανεγκαταστάσεις ΑΦΟΥ έληξε και ξαναφάνηκε η πηγή
         "dropped_finalised": 0,  # πακέτα από leases που έχουν ήδη λήξει/αντικατασταθεί
         "dropped_current": 0,    # πακέτα του τρέχοντος lease
     })
@@ -269,6 +270,11 @@ def dropped_total(drop_state, src_ip):
     """Αθροιστικά απορριφθέντα πακέτα σε ΟΛΑ τα leases της πηγής."""
     st = _lease(drop_state, src_ip)
     return st["dropped_finalised"] + st["dropped_current"]
+
+
+def total_renewals(st):
+    """Συνολικές (επαν)εγκαταστάσεις πέρα από την πρώτη: προληπτικές + αντιδραστικές."""
+    return st["proactive_renewals"] + st["reactive_reinstalls"]
 
 
 def report_enforcement(src_ip, renewal, dropped):
@@ -302,12 +308,17 @@ def _install_lease(src_ip, drop_state, kind):
     if not install_drop_flow(src_ip):
         return "failed"
     st["leases"] += 1
-    if kind != "installed":
-        st["renewals"] += 1
+    # Διαχωρισμός των δύο τύπων επανεγκατάστασης, γιατί έχουν διαφορετική σημασία:
+    # η προληπτική ανανέωση (renewed) αποτρέπει τη λήξη ώστε να μη μεσολαβήσει κενό,
+    # ενώ η αντιδραστική (reinstalled) διορθώνει εκ των υστέρων ένα ήδη ληγμένο lease.
+    if kind == "renewed":
+        st["proactive_renewals"] += 1
+    elif kind == "reinstalled":
+        st["reactive_reinstalls"] += 1
     drop_state["timeline"].setdefault("first_rule_installed_mono", time.monotonic())
     labels = {"installed": "installed",
-              "reinstalled": "REINSTALLED (lease had expired)",
-              "renewed": "renewed (η επίθεση συνεχίζεται)"}
+              "reinstalled": "REINSTALLED (reactive, lease had expired)",
+              "renewed": "renewed (proactive, η επίθεση συνεχίζεται)"}
     total = dropped_total(drop_state, src_ip)
     print(f"[OVS]  DROP {labels[kind]}: {src_ip} (hard_timeout={BLOCK_TTL}s, "
           f"lease #{st['leases']}, σύνολο απορριφθέντων={total})", flush=True)
@@ -574,12 +585,31 @@ def telemetry_loop(port_to_ip, victim_ip, stop_event, drop_state,
 #  Main
 # ──────────────────────────────────────────────────────────────────────────────
 
+# Κρίσιμες τιμές της κατανομής t (Student) για διπλής όψης 95% (0,975), ανά βαθμούς
+# ελευθερίας. Για μικρά δείγματα και άγνωστη διασπορά, η t δίνει ορθότερα (ευρύτερα)
+# διαστήματα από την κανονική z=1,96. Το mininet container έχει μόνο το requests, οπότε
+# η τιμή διαβάζεται από πίνακα αντί για scipy. df>30 -> προσέγγιση με z.
+_T_975 = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365,
+          8: 2.306, 9: 2.262, 10: 2.228, 11: 2.201, 12: 2.179, 13: 2.160, 14: 2.145,
+          15: 2.131, 16: 2.120, 17: 2.110, 18: 2.101, 19: 2.093, 20: 2.086,
+          21: 2.080, 22: 2.074, 23: 2.069, 24: 2.064, 25: 2.060, 26: 2.056,
+          27: 2.052, 28: 2.048, 29: 2.045, 30: 2.042}
+
+
+def _t_critical(df):
+    if df <= 0:
+        return 0.0
+    if df in _T_975:
+        return _T_975[df]
+    return 1.96  # df>30: η t πλησιάζει την κανονική
+
+
 def _stats(values):
     """median, mean, p95, τυπική απόκλιση και 95% CI του μέσου για μια λίστα τιμών.
 
-    Καθαρή Python (statistics), χωρίς numpy/scipy, γιατί το mininet container έχει
-    μόνο το requests. Το CI υπολογίζεται με προσέγγιση z=1,96 (κανονική), επαρκή για
-    τον σκοπό της αναφοράς πάνω σε δέκα ή περισσότερες ανεξάρτητες εκτελέσεις.
+    Καθαρή Python (statistics), χωρίς numpy/scipy. Το CI υπολογίζεται με την κατανομή t
+    (Student) με n-1 βαθμούς ελευθερίας, που είναι το ενδεδειγμένο για μικρά δείγματα με
+    άγνωστη διασπορά και δίνει ελαφρώς ευρύτερα διαστήματα από την κανονική προσέγγιση.
     """
     import math
     import statistics as st
@@ -590,10 +620,11 @@ def _stats(values):
     mean = st.fmean(xs)
     sd = st.pstdev(xs) if n < 2 else st.stdev(xs)
     p95 = xs[min(n - 1, int(math.ceil(0.95 * n)) - 1)]
-    ci = 1.96 * sd / math.sqrt(n) if n > 1 else 0.0
+    ci = _t_critical(n - 1) * sd / math.sqrt(n) if n > 1 else 0.0
     return {"n": n, "median": round(st.median(xs), 3), "mean": round(mean, 3),
             "p95": round(p95, 3), "std": round(sd, 3),
-            "ci95_low": round(mean - ci, 3), "ci95_high": round(mean + ci, 3)}
+            "ci_method": "t", "ci95_low": round(mean - ci, 3),
+            "ci95_high": round(mean + ci, 3)}
 
 
 def aggregate_cycles(cycles):
@@ -810,7 +841,8 @@ def main():
             print(f"\n[LIVE] C{cycle} result: "
                   f"{'✅ attacker blocked' if blocked else '⚠️ NOT blocked'} | "
                   f"dropped_pkts={total_dropped} | "
-                  f"leases={lease['leases']} (renewals={lease['renewals']}) | "
+                  f"leases={lease['leases']} (proactive={lease['proactive_renewals']}, "
+                  f"reactive={lease['reactive_reinstalls']}) | "
                   f"mitigation coverage={coverage_pct}% της επίθεσης "
                   f"({coverage_after_pct}% μετά την ανίχνευση) | "
                   f"{'✅ no FP' if not fp else '⚠️ FP on legit host'}", flush=True)
@@ -823,7 +855,9 @@ def main():
                 "attack_duration_s": round(attack_duration, 2),
                 "ovs_drop_rule_total_packets": total_dropped,
                 "drop_rule_leases": lease["leases"],
-                "drop_rule_renewals": lease["renewals"],
+                "drop_rule_renewals": total_renewals(lease),
+                "drop_rule_proactive_renewals": lease["proactive_renewals"],
+                "drop_rule_reactive_reinstalls": lease["reactive_reinstalls"],
                 "block_ttl_s": BLOCK_TTL,
                 "mitigation_coverage_pct": coverage_pct,
                 "mitigation_coverage_after_detection_pct": coverage_after_pct,

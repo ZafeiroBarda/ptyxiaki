@@ -168,4 +168,18 @@ DOI: [10.1109/ACCESS.2020.3022633](https://doi.org/10.1109/ACCESS.2020.3022633)
   pages   = {165263--165284},
   doi     = {10.1109/ACCESS.2020.3022633}
 }
+
+@article{hamarshe2023ddos,
+  author  = {Hamarshe, Ahmad and Ashqar, Huthaifa I. and Hamarsheh, Mohammad},
+  title   = {Detection of {DDoS} Attacks in Software Defined Networking Using Machine Learning Models},
+  journal = {arXiv preprint arXiv:2303.06513},
+  year    = {2023}
+}
+
+@article{gohari2024ctmbids,
+  author  = {Jafari Gohari, Rasoul and Aliahmadipour, Laya and Kuchaki Rafsanjani, Marjan},
+  title   = {{CTMBIDS}: Convolutional Tsetlin Machine Based Intrusion Detection System for {DDoS} Attacks in an {SDN} Environment},
+  journal = {arXiv preprint arXiv:2409.03544},
+  year    = {2024}
+}
 ```

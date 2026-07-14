@@ -98,7 +98,8 @@ def test_rule_is_renewed_during_long_attack(ovs):
     state = _run_attack(ovs, attack_s)
     lease = state["hosts"][ATTACKER]
 
-    assert lease["renewals"] >= 4, "ο κανόνας δεν ανανεώθηκε όσο η επίθεση συνεχιζόταν"
+    assert ml.total_renewals(lease) >= 4, "ο κανόνας δεν ανανεώθηκε όσο η επίθεση συνεχιζόταν"
+    assert lease["proactive_renewals"] >= 1, "δεν καταγράφηκε καμία προληπτική ανανέωση"
     assert ovs.rule is not None, "η επίθεση τελείωσε χωρίς ενεργό κανόνα"
 
 
@@ -131,4 +132,27 @@ def test_lease_is_released_when_attack_stops(ovs):
         ovs.tick(KEEPER_TICK)
 
     assert ovs.info(ATTACKER) is None, "ο κανόνας έμεινε ενεργός αν και η επίθεση σταμάτησε"
-    assert state["hosts"][ATTACKER]["renewals"] == 0, "ανανεώθηκε lease χωρίς επίθεση"
+    assert ml.total_renewals(state["hosts"][ATTACKER]) == 0, "ανανεώθηκε lease χωρίς επίθεση"
+
+
+def test_proactive_and_reactive_are_counted_separately(ovs):
+    """3.6: η προληπτική ανανέωση και η αντιδραστική επανεγκατάσταση μετρώνται χωριστά."""
+    state = _run_attack(ovs, 60)
+    lease = state["hosts"][ATTACKER]
+    assert "proactive_renewals" in lease and "reactive_reinstalls" in lease
+    # με τον keeper ενεργό (0,5s) η ανανέωση γίνεται προληπτικά, πριν λήξει το lease
+    assert lease["proactive_renewals"] >= 1
+    assert ml.total_renewals(lease) == lease["proactive_renewals"] + lease["reactive_reinstalls"]
+
+
+def test_ci_uses_t_distribution():
+    """3.3: το 95% CI υπολογίζεται με την κατανομή t, όχι με z=1,96."""
+    xs = [1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8]  # n=10, df=9
+    st = ml._stats(xs)
+    assert st["ci_method"] == "t"
+    assert ml._t_critical(9) == 2.262           # τιμή t για df=9
+    # το t-διάστημα είναι ευρύτερο από το αντίστοιχο z (z=1,96 < t=2,262)
+    import statistics, math
+    half_z = 1.96 * statistics.stdev(xs) / math.sqrt(len(xs))
+    half_t = (st["ci95_high"] - st["ci95_low"]) / 2
+    assert half_t > half_z

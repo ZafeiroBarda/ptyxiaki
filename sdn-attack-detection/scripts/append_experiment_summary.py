@@ -41,6 +41,8 @@ def row_from_summary(summary):
         "dropped_packets":       ev.get("ovs_drop_rule_total_packets"),
         "drop_rule_leases":      ev.get("drop_rule_leases"),
         "drop_rule_renewals":    ev.get("drop_rule_renewals"),
+        "proactive_renewals":    ev.get("drop_rule_proactive_renewals"),
+        "reactive_reinstalls":   ev.get("drop_rule_reactive_reinstalls"),
         "block_ttl_s":           cfg.get("block_ttl_s"),
         # Ρυθμός-κατώφλι πάνω από τον οποίο ανανεώνεται το lease. Ένα εξωπραγματικά
         # υψηλό κατώφλι απενεργοποιεί την ανανέωση και δίνει το baseline «χωρίς renewal».

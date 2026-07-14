@@ -70,7 +70,7 @@ sdn-attack-detection/
 ```bash
 pip install -r requirements.txt
 bash reproduce_thesis.sh   # ΠΛΗΡΗΣ αναπαραγωγή· bash run_all.sh για μόνο τον κορμό ML/DL/CV/adversarial
-pytest tests/ -v           # 142 tests: 135 pass, 7 skip χωρίς Docker/προαιρετικές εξαρτήσεις
+pytest tests/ -v           # 144 tests συλλέγονται (χωρίς Docker/live stack: 136 pass, 8 skip)
 ```
 Λεπτομέρειες αναπαραγωγιμότητας: **§6**.
 
@@ -250,7 +250,7 @@ pip install -r requirements.txt
 bash reproduce_thesis.sh          # <- ΠΛΗΡΗΣ αναπαραγωγή ΟΛΩΝ των αποτελεσμάτων
 bash run_all.sh                   # μόνο ο βασικός κορμός (ML/DL/CV/adversarial)
 bash run_packet_level_experiment.sh   # packet-level πείραμα (Mininet+OVS, απαιτεί Docker)
-pytest tests/ -v                  # 142 tests: 135 pass, 7 skip χωρίς Docker/προαιρετικές εξαρτήσεις
+pytest tests/ -v                  # 144 tests συλλέγονται (χωρίς Docker/live stack: 136 pass, 8 skip)
 ```
 
 **Πλήρης έναντι βασικής αναπαραγωγής**: το `bash run_all.sh` τρέχει τον κορμό
@@ -285,7 +285,16 @@ packet-level πείραμα του κεφαλαίου 6 (πραγματικά dr
 θα δεις `InconsistentVersionWarning`· λύνεται είτε τηρώντας το
 `requirements.txt` είτε αναδημιουργώντας τα μοντέλα με `bash run_all.sh`.
 
-**Ακριβής αναπαραγωγιμότητα**: για δεσμευμένες εκδόσεις χρησιμοποίησε το `requirements-lock.txt` (exact pins, π.χ. scikit-learn==1.9.0). Το `MANIFEST.sha256` περιέχει SHA-256 hashes των μοντέλων, του συνθετικού dataset και των κύριων αρχείων αποτελεσμάτων, ώστε να επαληθεύεται η ταυτότητα των artifacts.
+**Ακριβής αναπαραγωγιμότητα**: για δεσμευμένες εκδόσεις του ML περιβάλλοντος χρησιμοποίησε το `requirements-ml-lock.txt` (exact pins, π.χ. scikit-learn==1.9.0). Το αρχείο αυτό κλειδώνει το **ML περιβάλλον αναφοράς** (scikit-learn/pandas/numpy κ.λπ.), όχι ολόκληρη τη στοίβα: οι βιβλιοθήκες της live εφαρμογής (`dash`, `plotly`) και οι προαιρετικές (`shap`, `lightgbm`, `tensorflow`) δηλώνονται στο `requirements.txt`.
+
+Το `MANIFEST.sha256` περιέχει SHA-256 hashes των μοντέλων, του συνθετικού dataset και των κύριων αρχείων αποτελεσμάτων, ώστε να επαληθεύεται η ταυτότητα των artifacts:
+
+```bash
+# ΠΡΟΣΟΧΗ: το data/sdn_flows_synthetic.csv παράγεται ντετερμινιστικά και ΔΕΝ
+# περιλαμβάνεται στο ZIP. Πριν από τον έλεγχο του manifest, δημιούργησέ το:
+python3 ml_pipeline/generate_synthetic_dataset.py    # ή: bash run_all.sh
+sha256sum -c MANIFEST.sha256                          # τώρα περνά και το synthetic CSV
+```
 
 ---
 

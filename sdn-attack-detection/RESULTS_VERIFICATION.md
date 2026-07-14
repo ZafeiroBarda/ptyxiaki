@@ -43,34 +43,42 @@ attack continues. Latencies measured with a monotonic clock from attack start. R
 | First malicious telemetry | 1.14 s | `summary.json → latencies_s` |
 | Model verdict (detection) | **1.16 s** | `summary.json → latencies_s` |
 | Rule installed | 1.17 s | `summary.json → latencies_s` |
-| First dropped packet | **1.48 s** | `summary.json → latencies_s` |
+| First dropped packet | ~1.5 s (±0.5 s sampling) | `summary.json → latencies_s` |
 | Total dropped packets | **1,456,155** | `ovs_dump_flows.txt` / summary |
-| DROP rule leases (renewals) | 9 (8) | `summary.json` |
+| DROP rule leases (proactive / reactive) | 9 leases (8 proactive renewals, 0 reactive) | `summary.json` |
 | Mitigation coverage | **97.7%** total, **100%** after detection | `summary.json` |
 | False positives on legit hosts | 0 | `summary.json` |
 | Legit ping during attack | 0% loss, ~4 ms RTT | `summary.json` |
 
-TTL sweep (5 / 10 / 20 s) and the no-renewal baseline are recorded as separate `packet_level`
+The DROP-counter-derived timestamps (first dropped packet) carry ~±0.5 s sampling accuracy; the
+model-verdict and rule-install latencies are direct monotonic timestamps and are precise.
+
+TTL sweep (5 / 10 / 20 s) and the no-proactive-renewal baseline are recorded as separate `packet_level`
 rows in `results/live/experiment_summary.csv`.
 
-### Repeated runs (10 independent cycles, statistical reliability)
+### Repeated cycles (10 cycles within one execution, statistical reliability)
 
-Run `mininet_run_20260714_195434`, 10 independent attack cycles. Aggregates in
-`results/live/packet_level_repeated_stats.csv`; network impact in `results/live/network_impact.csv`.
+Run `mininet_run_20260714_213805`, **10 repeated attack cycles within a single execution** of the
+stack (same topology / controller / model, state reset between cycles — not 10 fully independent
+stack restarts). Aggregates in `results/live/packet_level_repeated_stats.csv`; network impact in
+`results/live/network_impact.csv`. Confidence intervals use the **t-distribution** (df = 9).
 
-| Metric | Median | Mean | p95 | 95% CI of mean |
+| Metric | Median | Mean | p95 | 95% CI of mean (t) |
 |---|---|---|---|---|
 | Detection rate | **100% (10/10)** | — | — | — |
 | False-positive cycles | **0 / 10** | — | — | — |
-| Detection latency (s) | 1.73 | 1.78 | 2.88 | [1.39, 2.17] |
-| First dropped packet (s) | 1.86 | 1.92 | 2.91 | [1.54, 2.31] |
-| Mitigation coverage (%) | 94.1 | 94.1 | 97.1 | [92.9, 95.3] |
+| Detection latency (s) | 1.41 | 1.52 | 2.66 | [1.06, 1.98] |
+| First dropped packet (s) * | 1.52 | 1.66 | 2.97 | [1.18, 2.13] |
+| Mitigation coverage (%) | 95.6 | 95.0 | 97.1 | [93.6, 96.4] |
 | Coverage after detection (%) | 100 | 100 | 100 | [100, 100] |
-| Dropped packets | 740,677 | 745,091 | 776,173 | [734,640, 755,541] |
+| Dropped packets | 744,845 | 746,757 | 770,106 | [736,192, 757,321] |
 
-**Network impact (legit host):** 0% packet loss in every phase of every cycle; mean RTT ~4.6 ms
-(normal) / ~4.4 ms (under attack) / ~4.4 ms (after recovery). The mitigation isolates the
-attacker without degrading legitimate traffic, and connectivity fully recovers once the attack stops.
+\* First-dropped-packet time has ~±0.5 s sampling accuracy (DROP counter polled every 0.5 s).
+
+**Network impact (legit host, measured quantities only):** 0% packet loss in every phase of every
+cycle; mean RTT ~4.5 ms (normal) / ~4.3 ms (under attack) / ~4.5 ms (after recovery). Within the
+measured quantities (loss and RTT of the ping traffic) the mitigation isolates the attacker without
+degrading legitimate traffic; throughput, jitter and controller CPU/RAM were not measured.
 
 ---
 
