@@ -211,7 +211,7 @@ def _append_csv(row: dict):
             w.writerow(row)
 
 # ── Per-host anomaly score cache (latest score per IP) ────────────────────────
-_anomaly_scores: dict = {}  # ip -> float (raw IF score, lower = more anomalous)
+_anomaly_scores: dict = {}  # ip -> float (IF decision_function: >0 normal, <0 anomaly)
 _scores_lock = threading.Lock()
 
 
@@ -366,12 +366,16 @@ def telemetry():
 
     verdict, feats = defense.analyze(flows)
 
-    # Compute raw anomaly score (lower = more anomalous) for dashboard
+    # Calibrated anomaly score for the dashboard. decision_function() centers the
+    # score on the model's own decision boundary (offset_): >0 -> normal, <0 ->
+    # anomaly. score_samples() would return the raw path-length score (here always
+    # ~ -0.5 because offset_ ~ -0.57), which is indistinguishable between normal
+    # and attack and made every host read 100% threat.
     anomaly_score = None
     if defense.iso is not None and defense.scaler is not None:
         try:
             X = defense.scaler.transform(feats.reshape(1, -1))
-            anomaly_score = float(defense.iso.score_samples(X)[0])
+            anomaly_score = float(defense.iso.decision_function(X)[0])
             with _scores_lock:
                 _anomaly_scores[src] = anomaly_score
         except Exception:

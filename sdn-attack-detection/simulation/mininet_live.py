@@ -71,7 +71,7 @@ def register_host(name, ip):
     try:
         requests.post(f"{CONTROLLER_URL}/register",
                       json={"node_id": name, "type": "host", "ip": ip},
-                      timeout=3)
+                      headers=_SWITCH_HEADERS, timeout=3)
     except Exception:
         pass
 

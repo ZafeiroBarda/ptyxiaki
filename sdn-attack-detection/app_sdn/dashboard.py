@@ -515,12 +515,14 @@ def update(_, history, selected_victim, selected_attackers):
         })
 
     # ── Anomaly Scores Panel ──────────────────────────────────────────────────
-    # IF score: more negative = more anomalous. Threshold ≈ 0.
-    # Normalize to 0-100% "threat level" for display: score=-0.5 → 100%, score=+0.2 → 0%
+    # Score = IF decision_function: >0 normal, <0 anomaly, 0 = decision boundary.
+    # Map to a 0-100% threat level anchored on the live score magnitudes: a clearly
+    # normal host (score >= +0.02) reads ~0%, the boundary (0) ~25%, and a detected
+    # attack (score <= -0.06) reads 100%. Colour follows the sign directly so the
+    # panel always agrees with the DROP decision shown in the event log.
     def _threat_pct(score):
-        # clamp to [-0.5, 0.2] range then normalize
-        clamped = max(-0.5, min(0.2, score))
-        return round((0.2 - clamped) / 0.7 * 100)
+        clamped = max(-0.06, min(0.02, score))
+        return round((0.02 - clamped) / 0.08 * 100)
 
     score_rows = []
     for h in _HOSTS:
@@ -529,7 +531,9 @@ def update(_, history, selected_victim, selected_attackers):
         if sc is None:
             continue
         pct   = _threat_pct(sc)
-        color = "#C44E52" if pct > 70 else ("#DD8452" if pct > 40 else "#55A868")
+        # Colour by the model's own verdict (sign of decision_function): <0 anomaly
+        # (red), >0 normal (green). Keeps the panel consistent with the event log.
+        color = "#C44E52" if sc < 0 else "#55A868"
         score_rows.append(html.Div(style={"marginBottom": "5px"}, children=[
             html.Div(style={"display": "flex", "justifyContent": "space-between",
                             "fontSize": "11px", "marginBottom": "2px"}, children=[
