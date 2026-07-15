@@ -1,2 +1,2 @@
 scenario,duration,normal_phase_s,attack_phase_s,bandwidth_mbps,total_bytes_exfiltrated,total_mb_exfiltrated,detections,false_positives,true_positives,false_negatives,true_negatives,detection_latency_s,blocked_ips,attacker_blocked,exfil_batches_sent,success
-data_exfiltration,20,10,10,8.0,10000000,9.54,10,4,2,0,1,0.71,["10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.4", "10.0.0.6"],True,2,False
+data_exfiltration,20,10,10,8.0,10000000,9.54,10,4,2,0,1,0.71,"[""10.0.0.1"", ""10.0.0.2"", ""10.0.0.3"", ""10.0.0.4"", ""10.0.0.6""]",True,2,False

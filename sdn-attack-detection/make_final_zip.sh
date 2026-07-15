@@ -27,6 +27,9 @@ INCLUDE_FILES = [
     "requirements-ml-lock.txt", "MANIFEST.sha256", "RESULTS_VERIFICATION.md",
     "reproduce_thesis.sh", "run_packet_level_experiment.sh",
     "data/README_DATA.md",
+    # Το συνθετικό σύνολο συμπεριλαμβάνεται ώστε το `sha256sum -c MANIFEST.sha256` να
+    # περνά ΑΜΕΣΩΣ μετά την αποσυμπίεση, χωρίς να χρειάζεται πρώτα αναπαραγωγή του.
+    "data/sdn_flows_synthetic.csv",
     "docs/Diplomatiki_Full.pdf",
     "docs/Τεχνική_Αναφορά_Μοντέλα_και_Ροή_Δεδομένων.pdf",
     "docs/architecture_mapping.md",

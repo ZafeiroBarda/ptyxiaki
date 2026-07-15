@@ -29,6 +29,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import random
@@ -312,10 +313,11 @@ def save_results(result: dict[str, Any]) -> Path:
     write_hdr = not csv_path.exists()
     flat = {k: (json.dumps(v) if isinstance(v, (dict, list)) else v)
             for k, v in result.items()}
-    with open(csv_path, "a") as fh:
+    with open(csv_path, "a", newline="") as fh:
+        w = csv.writer(fh)
         if write_hdr:
-            fh.write(",".join(flat.keys()) + "\n")
-        fh.write(",".join(str(v) for v in flat.values()) + "\n")
+            w.writerow(list(flat.keys()))
+        w.writerow(list(flat.values()))
     return out
 
 

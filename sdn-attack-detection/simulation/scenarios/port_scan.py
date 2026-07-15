@@ -28,6 +28,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import random
@@ -318,10 +319,13 @@ def save_results(result: dict[str, Any]) -> Path:
     # also write a one-row CSV for the bash runner
     csv_path = RESULTS_DIR / "scan_metrics.csv"
     write_header = not csv_path.exists()
-    with open(csv_path, "a") as fh:
+    flat = {k: (json.dumps(v) if isinstance(v, (dict, list)) else v)
+            for k, v in result.items()}
+    with open(csv_path, "a", newline="") as fh:
+        w = csv.writer(fh)
         if write_header:
-            fh.write(",".join(str(k) for k in result.keys()) + "\n")
-        fh.write(",".join(str(v) for v in result.values()) + "\n")
+            w.writerow(list(flat.keys()))
+        w.writerow(list(flat.values()))
     return out
 
 

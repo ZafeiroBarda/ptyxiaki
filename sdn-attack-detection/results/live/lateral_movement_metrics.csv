@@ -1,2 +1,2 @@
 scenario,duration,normal_phase_s,attack_phase_s,attacker_ip,targets_scanned,detections,false_positives,true_positives,false_negatives,true_negatives,detection_latency_s,blocked_ips,attacker_blocked,scan_batches_sent,success
-lateral_movement,20,10,10,10.0.0.3,4,3,1,1,0,4,0.31,["10.0.0.3", "10.0.0.6"],True,2,False
+lateral_movement,20,10,10,10.0.0.3,4,3,1,1,0,4,0.31,"[""10.0.0.3"", ""10.0.0.6""]",True,2,False

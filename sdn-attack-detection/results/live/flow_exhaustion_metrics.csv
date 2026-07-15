@@ -1,2 +1,2 @@
 scenario,duration,normal_phase_s,attack_phase_s,detections,false_positives,true_positives,false_negatives,true_negatives,detection_latency_s,per_host_detection_s,blocked_ips,flows_per_host_per_poll,success
-flow_exhaustion,20,10,10,10,0,4,0,0,0.14,{"10.0.0.1": 0.04, "10.0.0.2": 0.11, "10.0.0.3": 0.17, "10.0.0.4": 0.22},["10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.4"],300,True
+flow_exhaustion,20,10,10,10,0,4,0,0,0.14,"{""10.0.0.1"": 0.04, ""10.0.0.2"": 0.11, ""10.0.0.3"": 0.17, ""10.0.0.4"": 0.22}","[""10.0.0.1"", ""10.0.0.2"", ""10.0.0.3"", ""10.0.0.4""]",300,True

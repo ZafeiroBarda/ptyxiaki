@@ -14,6 +14,10 @@ os.environ.setdefault("SWITCH_API_KEY", "sdn-secret-2024")
 os.environ.setdefault("ADMIN_API_KEY",  "sdn-admin-2024")
 os.environ.setdefault("DEFENSE_MODE",   "0")
 
+# Χωρίς Flask εγκατεστημένο, τα API tests παραλείπονται καθαρά αντί να προκαλέσουν
+# σφάλμα συλλογής (ModuleNotFoundError) που σταματά όλη τη σουίτα.
+pytest.importorskip("flask")
+
 import controller as ctrl
 
 HEADERS_AUTH  = {"X-Switch-Token": "sdn-secret-2024", "Content-Type": "application/json"}

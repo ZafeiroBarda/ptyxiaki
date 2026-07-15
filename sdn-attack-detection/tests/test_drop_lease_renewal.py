@@ -71,6 +71,10 @@ def ovs(monkeypatch):
     fake = FakeOVS()
     monkeypatch.setattr(ml, "install_drop_flow", fake.install)
     monkeypatch.setattr(ml, "get_drop_rule_info", fake.info)
+    # Ο συγχρονισμός με τον controller (report_enforcement -> requests.post) ΔΕΝ
+    # αφορά αυτά τα unit tests: χωρίς ζωντανό controller κάθε κλήση περίμενε timeout
+    # σύνδεσης, καθιστώντας τη σουίτα εξαιρετικά αργή. Το ομοιώνουμε με no-op.
+    monkeypatch.setattr(ml, "report_enforcement", lambda *a, **k: None)
     return fake
 
 

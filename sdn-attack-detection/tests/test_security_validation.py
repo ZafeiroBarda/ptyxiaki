@@ -15,6 +15,9 @@ os.environ["SWITCH_API_KEY"] = "sdn-secret-2024"
 os.environ["ADMIN_API_KEY"]  = "sdn-admin-2024"
 os.environ["RATE_LIMIT_MAX"] = "50"
 
+# Χωρίς Flask εγκατεστημένο, τα tests παραλείπονται καθαρά αντί για σφάλμα συλλογής.
+pytest.importorskip("flask")
+
 import controller as ctrl
 
 AUTH   = {"X-Switch-Token": "sdn-secret-2024", "Content-Type": "application/json"}

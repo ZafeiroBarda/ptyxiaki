@@ -58,8 +58,8 @@ sdn-attack-detection/
 └── docs/
     ├── thesis_outline.md          #   περίγραμμα θεωρητικού μέρους
     ├── architecture_mapping.md    #   ΧΑΡΤΟΓΡΑΦΗΣΗ κώδικα ↔ αρχιτεκτονικής PDF
-    ├── Theoretical_Chapter.docx   #   θεωρητικό μέρος (Κεφ. 1-4)
-    └── Results_Chapter.docx       #   πειράματα & αποτελέσματα (Κεφ. 5-7) με γραφήματα
+    ├── bibliography.md            #   επαληθευμένες αναφορές (+ BibTeX)
+    └── Diplomatiki_Full.pdf       #   πλήρης διπλωματική (124 σελ.)
 ```
 
 ### Δύο αρχιτεκτονικές στο ίδιο project
@@ -299,10 +299,10 @@ packet-level πείραμα του κεφαλαίου 6 (πραγματικά dr
 Το `MANIFEST.sha256` περιέχει SHA-256 hashes των μοντέλων, του συνθετικού dataset και των κύριων αρχείων αποτελεσμάτων, ώστε να επαληθεύεται η ταυτότητα των artifacts:
 
 ```bash
-# ΠΡΟΣΟΧΗ: το data/sdn_flows_synthetic.csv παράγεται ντετερμινιστικά και ΔΕΝ
-# περιλαμβάνεται στο ZIP. Πριν από τον έλεγχο του manifest, δημιούργησέ το:
-python3 ml_pipeline/generate_synthetic_dataset.py    # ή: bash run_all.sh
-sha256sum -c MANIFEST.sha256                          # τώρα περνά και το synthetic CSV
+# Το data/sdn_flows_synthetic.csv περιλαμβάνεται πλέον ΚΑΙ στο repo ΚΑΙ στο ZIP,
+# οπότε ο έλεγχος περνά αμέσως μετά την αποσυμπίεση:
+sha256sum -c MANIFEST.sha256
+# (Αν λείπει, αναπαράγεται ντετερμινιστικά: python3 ml_pipeline/generate_synthetic_dataset.py)
 ```
 
 ---
