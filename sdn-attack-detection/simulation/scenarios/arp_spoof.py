@@ -245,8 +245,10 @@ def run_standalone(controller: str, duration: int) -> dict[str, Any]:
         "impersonated_ip_blocked": impersonated_blocked,
         "blocked_ips":             blocked_ips,
         "attack_batches_sent":     len(attack_verdicts),
-        # Success: attacker detected AND truly innocent hosts not blocked
-        "success":                 (tp > 0 or attacker_blocked) and fp == 0,
+        # Success ΜΟΝΟ αν η ΙΔΙΑ η επίθεση ARP ανιχνεύθηκε (tp>0) χωρίς ψευδώς
+        # θετικά. Ο έμμεσος αποκλεισμός του attacker από συνοδευτική ανωμαλία ΔΕΝ
+        # συνιστά επιτυχία ανίχνευσης ARP spoofing.
+        "success":                 tp > 0 and fp == 0,
     }
 
     print("\n" + "=" * 60)

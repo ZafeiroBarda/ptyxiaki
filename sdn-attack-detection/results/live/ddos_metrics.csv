@@ -1,2 +1,2 @@
-scenario,timestamp,duration_s,detection_latency_s,attacker_blocked,false_positives,total_detections,drop_rules
-ddos_syn_flood,2026-07-12T23:56:59,60,0.03,True,0,25,1
+scenario,timestamp,duration_s,detection_latency_s,attacker_blocked,false_positives,total_detections,drop_rules,success
+ddos_syn_flood,2026-07-12T23:56:59,60,0.03,True,0,25,1,True
