@@ -182,4 +182,59 @@ DOI: [10.1109/ACCESS.2020.3022633](https://doi.org/10.1109/ACCESS.2020.3022633)
   journal = {arXiv preprint arXiv:2409.03544},
   year    = {2024}
 }
+
+@article{he2023adversarial,
+  author  = {He, Ke and Kim, Dan Dongseong and Asghar, Muhammad Rizwan},
+  title   = {Adversarial Machine Learning for Network Intrusion Detection Systems: A Comprehensive Survey},
+  journal = {IEEE Communications Surveys \& Tutorials},
+  year    = {2023},
+  volume  = {25},
+  number  = {1},
+  pages   = {538--566},
+  doi     = {10.1109/COMST.2022.3233793}
+}
+
+@article{goldschmidt2025datasets,
+  author  = {Goldschmidt, Patrik and Chud{\'a}, Daniela},
+  title   = {Network Intrusion Datasets: A Survey, Limitations, and Recommendations},
+  journal = {Computers \& Security},
+  year    = {2025},
+  volume  = {156},
+  pages   = {104510},
+  doi     = {10.1016/j.cose.2025.104510}
+}
+
+@article{janabi2024sdnids,
+  author  = {Janabi, Ahmed H. and Kanakis, Triantafyllos and Johnson, Mark},
+  title   = {Survey: Intrusion Detection System in Software-Defined Networking},
+  journal = {IEEE Access},
+  year    = {2024},
+  volume  = {12},
+  pages   = {164097--164120},
+  doi     = {10.1109/ACCESS.2024.3493384}
+}
+
+@article{dogan2025sdnmitigation,
+  author  = {Do{\u{g}}an, Sait Melih and Ko{\c{c}}ak, Aynur and Alkan, Mustafa},
+  title   = {Detection and Mitigation of Cyber-Attacks in Software Defined Networks Using Machine Learning/Deep Learning: A Systematic Literature Review, Research Challenges and Future Directions},
+  journal = {International Journal of Information Security},
+  year    = {2025},
+  volume  = {24},
+  pages   = {209},
+  doi     = {10.1007/s10207-025-01114-z}
+}
 ```
+
+## Πρόσφατες peer-reviewed πηγές 2023–2025 (επαληθευμένες μέσω Crossref)
+
+**[26] He, K., Kim, D. D., & Asghar, M. R. (2023).** Adversarial Machine Learning for Network Intrusion Detection Systems: A Comprehensive Survey. *IEEE Communications Surveys & Tutorials*, 25(1), 538–566. DOI: [10.1109/COMST.2022.3233793](https://doi.org/10.1109/COMST.2022.3233793)
+→ *Χρήση:* §6.12 — πλαισιώνει την ανάλυση αντίπαλης ευπάθειας/adversarial robustness.
+
+**[27] Goldschmidt, P., & Chudá, D. (2025).** Network Intrusion Datasets: A Survey, Limitations, and Recommendations. *Computers & Security*, 156, 104510. DOI: [10.1016/j.cose.2025.104510](https://doi.org/10.1016/j.cose.2025.104510)
+→ *Χρήση:* §6.6 — υποστηρίζει τη συζήτηση για διαρροή/διπλότυπα και τους περιορισμούς των συνόλων IDS.
+
+**[28] Janabi, A. H., Kanakis, T., & Johnson, M. (2024).** Survey: Intrusion Detection System in Software-Defined Networking. *IEEE Access*, 12, 164097–164120. DOI: [10.1109/ACCESS.2024.3493384](https://doi.org/10.1109/ACCESS.2024.3493384)
+→ *Χρήση:* §3.8 — σύγχρονη επισκόπηση ML-based IDS σε SDN.
+
+**[29] Doğan, S. M., Koçak, A., & Alkan, M. (2025).** Detection and Mitigation of Cyber-Attacks in Software Defined Networks Using Machine Learning/Deep Learning: A Systematic Literature Review, Research Challenges and Future Directions. *International Journal of Information Security*, 24, 209. DOI: [10.1007/s10207-025-01114-z](https://doi.org/10.1007/s10207-025-01114-z)
+→ *Χρήση:* §3.8 / Κεφ. 7 — ανίχνευση ΚΑΙ αντιμετώπιση σε SDN, άμεσα συναφές με τον τίτλο.

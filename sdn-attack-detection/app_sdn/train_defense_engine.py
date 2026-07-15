@@ -73,14 +73,15 @@ def main():
     scaler = StandardScaler().fit(X_normal)
     Xs = scaler.transform(X_normal)
 
-    # Βελτιστοποιημένες υπερπαράμετροι (από ml_pipeline/hyperparameter_tuning.py):
-    # περισσότερα δέντρα & μεγαλύτερο max_samples για σταθερότερη εκτίμηση.
-    # Χαμηλό contamination ώστε το live σύστημα να ΜΗΝ παράγει false positives.
+    # ΛΕΙΤΟΥΡΓΙΚΑ ΕΠΙΛΕΓΜΕΝΕΣ υπερπαράμετροι για το ΖΩΝΤΑΝΟ μοντέλο (8 συγκεντρωτικά
+    # features), εμπνευσμένες από τη μελέτη tuning αλλά ΟΧΙ ταυτόσημες με τον νικητή
+    # της (που αφορά τα 24 offline features). Εδώ προτεραιότητα είναι τα ΛΙΓΑ false
+    # positives σε πραγματική κίνηση, εξ ου και το χαμηλότερο contamination.
     iso = IsolationForest(
-        n_estimators=300,        # ↑ από 150 (πιο σταθερό anomaly score)
+        n_estimators=300,        # περισσότερα δέντρα -> πιο σταθερό anomaly score
         max_samples=512,         # μεγαλύτερο δείγμα ανά δέντρο
         max_features=0.75,       # 6/8 features ανά δέντρο
-        contamination=0.03,      # συντηρητικό κατώφλι -> λίγα false positives
+        contamination=0.03,      # συντηρητικό κατώφλι -> λίγα false positives στο live
         random_state=config.RANDOM_STATE, n_jobs=-1,
     )
     iso.fit(Xs)

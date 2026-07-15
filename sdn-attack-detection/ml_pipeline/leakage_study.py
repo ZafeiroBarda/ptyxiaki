@@ -33,6 +33,9 @@ import matplotlib.pyplot as plt
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import f1_score, accuracy_score
@@ -41,14 +44,31 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import config
 import preprocess
 
-MODELS = {
-    "Random Forest": lambda: RandomForestClassifier(
-        n_estimators=200, n_jobs=-1, random_state=config.RANDOM_STATE),
-    "Decision Tree": lambda: DecisionTreeClassifier(
-        max_depth=20, random_state=config.RANDOM_STATE),
-    "Logistic Regression": lambda: LogisticRegression(
-        max_iter=1000, random_state=config.RANDOM_STATE),
-}
+# Και τα έξι μοντέλα αξιολογούνται ΚΑΙ με τυχαίο ΚΑΙ με group-aware διαχωρισμό, ώστε
+# η απάντηση στο RQ1 να μη μειγνύει πρωτόκολλα: για κάθε μοντέλο φαίνεται ξεχωριστά
+# η τιμή στον τυχαίο διαχωρισμό (με διαρροή διπλότυπων) και στον group-aware.
+# Το SVM (RBF) είναι O(n^2) στο InSDN (~230k δείγματα train)· παραλείπεται όταν
+# οριστεί --no-svm, χωρίς να επηρεάζεται η κύρια σύγκριση (train.py --insdn).
+def build_models(include_svm=True):
+    m = {
+        "Random Forest": lambda: RandomForestClassifier(
+            n_estimators=200, n_jobs=-1, random_state=config.RANDOM_STATE),
+        "Decision Tree": lambda: DecisionTreeClassifier(
+            max_depth=20, random_state=config.RANDOM_STATE),
+        "KNN": lambda: KNeighborsClassifier(n_neighbors=5, n_jobs=-1),
+        "MLP (Neural Net)": lambda: MLPClassifier(
+            hidden_layer_sizes=(64, 32), max_iter=300,
+            random_state=config.RANDOM_STATE),
+        "Logistic Regression": lambda: LogisticRegression(
+            max_iter=1000, random_state=config.RANDOM_STATE),
+    }
+    if include_svm:
+        m["SVM (RBF)"] = lambda: SVC(
+            kernel="rbf", C=10, gamma="scale", random_state=config.RANDOM_STATE)
+    return m
+
+
+MODELS = build_models()
 
 
 def duplicate_report(df, feats):

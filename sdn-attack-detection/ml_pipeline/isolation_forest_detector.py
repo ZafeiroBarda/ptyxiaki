@@ -99,9 +99,18 @@ def main(use_insdn=False):
     X_train_s = scaler.transform(X_train)
     X_test_s = scaler.transform(X_test)
 
-    # Βελτιστοποιημένες υπερπαράμετροι (από hyperparameter_tuning.py: ROC AUC 0.9936)
-    # contamination=0.05: ισορροπία μεταξύ recall επιθέσεων & λίγων false positives
-    print("[*] Εκπαίδευση Isolation Forest ΜΟΝΟ σε φυσιολογική κίνηση (tuned params)...")
+    # ΛΕΙΤΟΥΡΓΙΚΑ ΕΠΙΛΕΓΜΕΝΕΣ υπερπαράμετροι (operationally selected) — ΟΧΙ ο απόλυτος
+    # νικητής του tuning. Το hyperparameter_tuning.py κατατάσσει κατά val ROC AUC με
+    # κορυφαία διαμόρφωση (n_estimators=100, max_samples=256, contamination=0.02,
+    # max_features=1.0· val ROC AUC 0.9991, test F1 0.9923). Το ROC AUC είναι
+    # ανεξάρτητο κατωφλίου, άρα το contamination δεν το μεταβάλλει· η επιλογή εδώ
+    # γίνεται με ΛΕΙΤΟΥΡΓΙΚΑ κριτήρια, όχι με μεγιστοποίηση μιας μόνο μετρικής:
+    #   * n_estimators=300, max_samples=512  -> σταθερότερο anomaly score (χαμηλή διασπορά)
+    #   * contamination=0.05                 -> υψηλότερο recall επιθέσεων (0.02 θα έριχνε το recall)
+    #   * max_features=0.5                   -> feature subsampling, μείωση διασποράς σε πραγματικά δεδομένα
+    # Η διαμόρφωση αυτή έχει val F1 0.9940 (εντός του top cluster του tuning· νικητής 0.9941).
+    # Τα αποτελέσματα tuning και deployed παρουσιάζονται ΞΕΧΩΡΙΣΤΑ στη διπλωματική.
+    print("[*] Εκπαίδευση Isolation Forest ΜΟΝΟ σε φυσιολογική κίνηση (operationally selected params)...")
     iso = IsolationForest(
         n_estimators=300, max_samples=512, contamination=0.05, max_features=0.5,
         random_state=config.RANDOM_STATE, n_jobs=-1,

@@ -1,7 +1,13 @@
 split,model,accuracy,macro_f1,test_leaked_pct
 random,Random Forest,0.9899,0.9448,50.2
 random,Decision Tree,0.9893,0.9435,50.2
+random,KNN,0.9898,0.9523,50.2
+random,MLP (Neural Net),0.974,0.9306,50.2
 random,Logistic Regression,0.9107,0.7289,50.2
+random,SVM (RBF),0.9386,0.8322,50.2
 group,Random Forest,0.9892,0.9472,0.0
 group,Decision Tree,0.9892,0.9428,0.0
+group,KNN,0.7472,0.7728,0.0
+group,MLP (Neural Net),0.7379,0.7408,0.0
 group,Logistic Regression,0.91,0.7263,0.0
+group,SVM (RBF),0.7025,0.652,0.0

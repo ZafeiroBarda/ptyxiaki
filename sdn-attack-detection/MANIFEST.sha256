@@ -19,7 +19,7 @@ c1a106624799c42487c236a60dd57c9d0d401019355fffa1d8c4c639afae6b50  models/meta.js
 f135bbfa3e61ab776194a5de20e9bb0fd775e5bc23a666784302e2262b7bc3c0  models/scaler.pkl
 f2fe833215a275972d5cdf5c2cd41701a692388348d22a04953e5bf86affa823  data/sdn_flows_synthetic.csv
 bd6608a6e99da3d2a1165401f591eeff0e3422f2982dd74e2261aa559e7444e0  results/model_comparison.csv
-3a751c495d1489caf17f4419f7d2dbf85b119aacb56072fbb15f7c53c0f45d99  results/model_comparison_insdn.csv
+d07e684c74fcb9303a31c38eb8ce2dd0a11d92adb995fc9a84f1387731c2c1fc  results/model_comparison_insdn.csv
 53bc6b9a2ceabbfc23f3c2c8cd800ed659c63d352bb038e7021607b72b1c58ec  results/isolation_forest_tuning.csv
 
 # packet-level πείραμα (provenance, 4.7/4.8 + repeated cycles, t-CI)

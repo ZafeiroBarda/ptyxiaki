@@ -81,7 +81,7 @@ def evaluate_model(model, X_test, y_test):
     }
 
 
-def main(use_insdn=False):
+def main(use_insdn=False, output=None):
     os.makedirs(config.MODELS_DIR, exist_ok=True)
     os.makedirs(config.RESULTS_DIR, exist_ok=True)
 
@@ -140,8 +140,11 @@ def main(use_insdn=False):
     print("=" * 70)
     print(res_df.to_string(index=False))
 
-    # Αποθήκευση πίνακα αποτελεσμάτων
-    res_csv = os.path.join(config.RESULTS_DIR, "model_comparison.csv")
+    # Αποθήκευση πίνακα αποτελεσμάτων. Το όνομα εξαρτάται από το dataset ώστε το
+    # τρέχον pipeline να παράγει ΑΜΕΣΑ το artifact που αναφέρεται στη διπλωματική
+    # (π.χ. model_comparison_insdn.csv) — καθαρή αλυσίδα κώδικας → CSV → πίνακας.
+    default_name = "model_comparison_insdn.csv" if use_insdn else "model_comparison.csv"
+    res_csv = output or os.path.join(config.RESULTS_DIR, default_name)
     res_df.to_csv(res_csv, index=False)
     print(f"\n[OK] Πίνακας αποτελεσμάτων: {res_csv}")
 
@@ -190,5 +193,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--insdn", action="store_true",
                         help="Χρήση πραγματικού InSDN dataset αντί για το συνθετικό")
+    parser.add_argument("--output", default=None,
+                        help="Διαδρομή για το CSV αποτελεσμάτων (υπερισχύει του "
+                             "προεπιλεγμένου model_comparison[_insdn].csv)")
     args = parser.parse_args()
-    main(use_insdn=args.insdn)
+    main(use_insdn=args.insdn, output=args.output)
