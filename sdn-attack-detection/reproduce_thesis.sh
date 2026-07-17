@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
 ###############################################################################
-# reproduce_thesis.sh — ΠΛΗΡΗΣ αναπαραγωγή ΟΛΩΝ των αποτελεσμάτων του κειμένου.
+# reproduce_thesis.sh — ΠΛΗΡΗΣ offline αναπαραγωγή για το επιλεγμένο dataset.
 #
-# Το run_all.sh τρέχει μόνο τον βασικό κορμό (dataset, κλασικά μοντέλα, CV,
-# τελική σύγκριση, adversarial training). ΔΕΝ έτρεχε τις μελέτες leakage,
-# easy/hard, hyperparameter tuning, Isolation Forest και SHAP, παρότι τα
-# αποτελέσματά τους παρουσιάζονται στο κείμενο. Εδώ εκτελούνται ΟΛΑ ρητά.
+# ΠΕΔΙΟ: εκτελεί ΟΛΟ το OFFLINE workflow (dataset, κλασικά μοντέλα, CV, leakage,
+# easy/hard, hyperparameter tuning, offline Isolation Forest, SHAP, adversarial
+# training) για ΕΝΑ dataset τη φορά. ΔΕΝ αναπαράγει τα packet-level πειράματα.
+#
+# ΠΡΟΣΟΧΗ:
+#   * Χωρίς flag τρέχει το synthetic offline workflow· με --insdn το InSDN workflow.
+#     Το --insdn είναι εκτέλεση ΑΞΙΟΛΟΓΗΣΗΣ και ΔΕΝ αντικαθιστά τα deployable
+#     synthetic artifacts (βλ. train.py). Τα offline IF artifacts φέρουν επίθεμα
+#     dataset (_synthetic/_insdn), ώστε οι δύο εκτελέσεις να μη συγκρούονται.
+#   * Το offline Isolation Forest (24 χαρακτηριστικά) ΔΕΝ είναι το ίδιο artifact με
+#     το deployed live μοντέλο (8 συγκεντρωτικά χαρακτηριστικά, app_sdn/train_defense_engine.py).
 #
 # Χρήση:
-#   bash reproduce_thesis.sh              # συνθετικό dataset (επίσημα αποτελέσματα)
-#   bash reproduce_thesis.sh --insdn      # με το πραγματικό InSDN
+#   bash reproduce_thesis.sh              # συνθετικό dataset (επίσημα offline αποτελέσματα)
+#   bash reproduce_thesis.sh --insdn      # με το πραγματικό InSDN (αξιολόγηση)
 #
-# Το packet-level πείραμα (Mininet + OVS) απαιτεί Docker και τρέχει ΞΕΧΩΡΙΣΤΑ:
+# Τα packet-level πειράματα (Mininet + OVS) απαιτούν Docker και τρέχουν ΞΕΧΩΡΙΣΤΑ:
 #   bash run_packet_level_experiment.sh
 ###############################################################################
 set -e
@@ -54,7 +61,7 @@ python3 ml_pipeline/synthetic_mode_study.py
 echo ">>> Βελτιστοποίηση υπερπαραμέτρων"
 python3 ml_pipeline/hyperparameter_tuning.py $FLAG
 
-echo ">>> Isolation Forest (μοντέλο του ζωντανού συστήματος)"
+echo ">>> Isolation Forest (OFFLINE, 24 χαρακτηριστικά — ΟΧΙ το deployed live μοντέλο)"
 python3 ml_pipeline/isolation_forest_detector.py $FLAG
 
 if have shap; then

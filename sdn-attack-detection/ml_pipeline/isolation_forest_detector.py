@@ -137,8 +137,12 @@ def main(use_insdn=False):
         "f1": f1_score(y_test, y_pred, zero_division=0),
         "roc_auc": auc,
     }
+    # Τα ονόματα των artifacts φέρουν επίθεμα dataset ώστε η εκτέλεση με --insdn να
+    # ΜΗΝ αντικαθιστά τα synthetic αποτελέσματα/μοντέλα (και αντίστροφα). Έτσι το ίδιο
+    # το τρέχον pipeline παράγει και τα δύο σύνολα artifacts που αναφέρει η §6.7.
+    tag = "insdn" if use_insdn else "synthetic"
     pd.DataFrame([metrics]).to_csv(
-        os.path.join(config.RESULTS_DIR, "isolation_forest_metrics.csv"), index=False)
+        os.path.join(config.RESULTS_DIR, f"isolation_forest_metrics_{tag}.csv"), index=False)
 
     # --- Γράφημα 1: confusion matrix ---
     cm = confusion_matrix(y_test, y_pred)
@@ -148,9 +152,9 @@ def main(use_insdn=False):
     plt.title("Isolation Forest — Confusion Matrix")
     plt.ylabel("Πραγματική"); plt.xlabel("Προβλεπόμενη")
     plt.tight_layout()
-    plt.savefig(os.path.join(config.RESULTS_DIR, "isolation_forest_cm.png"), dpi=150)
+    plt.savefig(os.path.join(config.RESULTS_DIR, f"isolation_forest_cm_{tag}.png"), dpi=150)
     plt.close()
-    print(f"[OK] results/isolation_forest_cm.png")
+    print(f"[OK] results/isolation_forest_cm_{tag}.png")
 
     # --- Γράφημα 2: κατανομή anomaly score ---
     plt.figure(figsize=(10, 5))
@@ -161,15 +165,19 @@ def main(use_insdn=False):
     plt.xlabel("Anomaly score (μεγαλύτερο = πιο ύποπτο)"); plt.ylabel("Πυκνότητα")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(os.path.join(config.RESULTS_DIR, "isolation_forest_scores.png"), dpi=150)
+    plt.savefig(os.path.join(config.RESULTS_DIR, f"isolation_forest_scores_{tag}.png"), dpi=150)
     plt.close()
-    print(f"[OK] results/isolation_forest_scores.png")
+    print(f"[OK] results/isolation_forest_scores_{tag}.png")
 
-    # --- Αποθήκευση μοντέλου (Defense Engine artifact) ---
-    joblib.dump(iso, os.path.join(config.MODELS_DIR, "isolation_forest.pkl"))
-    joblib.dump(scaler, os.path.join(config.MODELS_DIR, "isolation_forest_scaler.pkl"))
-    print("[OK] models/isolation_forest.pkl, isolation_forest_scaler.pkl")
-    print("\n[ΟΛΟΚΛΗΡΩΘΗΚΕ] Isolation Forest (unsupervised) έτοιμο.")
+    # --- Αποθήκευση μοντέλου (offline 24-feature IF artifact) ---
+    # ΠΡΟΣΟΧΗ: ΔΕΝ είναι το deployed live μοντέλο. Το ζωντανό σύστημα χρησιμοποιεί
+    # ΔΙΑΦΟΡΕΤΙΚΟ μοντέλο 8 συγκεντρωτικών χαρακτηριστικών (app_sdn/train_defense_engine.py
+    # -> isolation_forest_live.pkl). Εδώ αποθηκεύεται μόνο το offline μοντέλο των 24
+    # χαρακτηριστικών ανά dataset.
+    joblib.dump(iso, os.path.join(config.MODELS_DIR, f"isolation_forest_{tag}.pkl"))
+    joblib.dump(scaler, os.path.join(config.MODELS_DIR, f"isolation_forest_scaler_{tag}.pkl"))
+    print(f"[OK] models/isolation_forest_{tag}.pkl, isolation_forest_scaler_{tag}.pkl")
+    print("\n[ΟΛΟΚΛΗΡΩΘΗΚΕ] Isolation Forest (offline, unsupervised) έτοιμο.")
     return metrics
 
 

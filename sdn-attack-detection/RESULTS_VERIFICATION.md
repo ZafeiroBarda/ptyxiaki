@@ -15,7 +15,7 @@ Two distinct experiment paths, kept separate on purpose:
 | Scenario | Detection Latency (API) | Attacker Blocked | False Positives | Result file |
 |---|---|---|---|---|
 | DDoS / SYN Flood | 0.03 s (API only) | ✅ YES | 0 | `results/live/ddos_metrics.csv` |
-| Port Scan | **0.24 s** | ✅ YES | 0 | `results/live/scan_metrics.json` |
+| Port Scan | **0.24 s** (official 20 s run; a 60 s run gave 0.17 s) | ✅ YES | 0 | `results/live/scan_metrics.json` (20 s); both runs in `scan_metrics.csv` |
 | Data Exfiltration | **0.71 s** | ✅ YES | 4* | `results/live/exfiltration_metrics.json` |
 | Flow Table Exhaustion | **0.14 s** | ✅ YES | 0 | `results/live/flow_exhaustion_metrics.json` |
 | Lateral Movement | **0.31 s** | ✅ YES | 1* | `results/live/lateral_movement_metrics.json` |
@@ -124,7 +124,7 @@ Legitimate-only traffic from h1–h4, 10 rounds × 4 hosts = 40 telemetry calls.
 | Live CSV export | ✅ `/export/flows.csv`, `/export/blocked.csv` |
 | Anomaly scores endpoint | ✅ `/anomaly_scores` |
 | Sim control API | ✅ `/simulate/command`, `/simulate/poll` |
-| Mode B (Ryu/OpenFlow) | ✅ Available via `--profile ryu` |
+| Mode B (Ryu/OpenFlow) | ⚙️ Implemented experimental profile (`--profile ryu`) — **not** end-to-end validated |
 
 ---
 

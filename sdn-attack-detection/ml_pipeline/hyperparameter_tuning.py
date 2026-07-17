@@ -123,7 +123,11 @@ def tune_isolation_forest(use_insdn=False):
                   f"{max(r['val_roc_auc'] for r in rows):.4f} | {el:.0f}s")
 
     res = (pd.DataFrame(rows)
-           .sort_values("val_roc_auc", ascending=False)
+           # Το ROC-AUC είναι threshold-independent, άρα το contamination δεν το
+           # μεταβάλλει. Σε ισοβαθμία ROC-AUC, σπάμε το ισόπαλο με το validation F1
+           # (που εξαρτάται από το threshold/contamination), ώστε να μην επιλέγεται
+           # αυθαίρετα μια διαμόρφωση με χαμηλότερο F1 λόγω απλής ισοβαθμίας.
+           .sort_values(["val_roc_auc", "val_f1"], ascending=[False, False])
            .reset_index(drop=True))
 
     best = res.iloc[0]

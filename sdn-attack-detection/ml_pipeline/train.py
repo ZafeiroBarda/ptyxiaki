@@ -153,34 +153,47 @@ def main(use_insdn=False, output=None):
     best_model = trained[best_name]
     print(f"\n[*] Καλύτερο μοντέλο (κατά validation): {best_name}")
 
-    joblib.dump(best_model, os.path.join(config.MODELS_DIR, "best_model.pkl"))
-    joblib.dump(data["scaler"], os.path.join(config.MODELS_DIR, "scaler.pkl"))
-    joblib.dump(data["label_encoder"], os.path.join(config.MODELS_DIR, "label_encoder.pkl"))
-    with open(os.path.join(config.MODELS_DIR, "feature_columns.json"), "w") as f:
-        json.dump(data["feature_columns"], f, indent=2)
-    # Καταγράφουμε και το περιβάλλον εκπαίδευσης: τα .pkl είναι δεμένα με την
-    # έκδοση της scikit-learn που τα παρήγαγε (unpickle σε άλλη έκδοση βγάζει
-    # InconsistentVersionWarning).
     import platform
     import sklearn
     import numpy as _np
     import pandas as _pd
-    with open(os.path.join(config.MODELS_DIR, "meta.json"), "w") as f:
-        json.dump({
-            "best_model": best_name,
-            "classes": class_names,
-            "dataset": "InSDN" if use_insdn else "synthetic (default)",
-            "random_state": config.RANDOM_STATE,
-            "test_size": config.TEST_SIZE,
-            "trained_with": {
-                "python": platform.python_version(),
-                "scikit-learn": sklearn.__version__,
-                "numpy": _np.__version__,
-                "pandas": _pd.__version__,
-                "joblib": joblib.__version__,
-            },
-        }, f, indent=2, ensure_ascii=False)
-    print(f"[OK] Αποθηκεύτηκαν μοντέλο/scaler/encoder στο: {config.MODELS_DIR}")
+    meta = {
+        "best_model": best_name,
+        "classes": class_names,
+        "dataset": "InSDN" if use_insdn else "synthetic (default)",
+        "random_state": config.RANDOM_STATE,
+        "test_size": config.TEST_SIZE,
+        "trained_with": {
+            "python": platform.python_version(),
+            "scikit-learn": sklearn.__version__,
+            "numpy": _np.__version__,
+            "pandas": _pd.__version__,
+            "joblib": joblib.__version__,
+        },
+    }
+    # meta ανά dataset — καταγράφεται ΠΑΝΤΑ, χωρίς να αντικαθιστά το άλλο dataset.
+    tag = "insdn" if use_insdn else "synthetic"
+    with open(os.path.join(config.MODELS_DIR, f"meta_{tag}.json"), "w") as f:
+        json.dump(meta, f, indent=2, ensure_ascii=False)
+
+    if use_insdn:
+        # Το `--insdn` είναι εκτέλεση ΑΞΙΟΛΟΓΗΣΗΣ (παράγει model_comparison_insdn.csv):
+        # ΔΕΝ αντικαθιστά τα deployable synthetic artifacts. Το InSDN best model είναι
+        # ο KNN (~36 MB, αποθηκεύει όλο το training set) και δεν το φορτώνει κανένα
+        # component — γι' αυτό δεν σειριοποιείται. Αναπαράγεται όποτε χρειαστεί.
+        print("[i] --insdn: εκτέλεση αξιολόγησης· τα deployable artifacts (best_model.pkl "
+              "κ.λπ.) ΔΕΝ αντικαθίστανται. Καταγράφηκε models/meta_insdn.json.")
+    else:
+        # Default (synthetic): γράφει τα ΚΑΝΟΝΙΚΑ (canonical) artifacts που φορτώνουν
+        # τα downstream (adversarial_robustness.py, shap_analysis.py) και το MANIFEST.
+        joblib.dump(best_model, os.path.join(config.MODELS_DIR, "best_model.pkl"))
+        joblib.dump(data["scaler"], os.path.join(config.MODELS_DIR, "scaler.pkl"))
+        joblib.dump(data["label_encoder"], os.path.join(config.MODELS_DIR, "label_encoder.pkl"))
+        with open(os.path.join(config.MODELS_DIR, "feature_columns.json"), "w") as f:
+            json.dump(data["feature_columns"], f, indent=2)
+        with open(os.path.join(config.MODELS_DIR, "meta.json"), "w") as f:
+            json.dump(meta, f, indent=2, ensure_ascii=False)
+        print(f"[OK] Αποθηκεύτηκαν canonical μοντέλο/scaler/encoder στο: {config.MODELS_DIR}")
 
     # Επιστροφή για χρήση από το evaluate.py
     return {

@@ -317,7 +317,7 @@ sha256sum -c MANIFEST.sha256
 | Πίνακας 9 (σύγκριση, συνθετικό) | `results/model_comparison.csv` | `ml_pipeline/evaluate.py` |
 | Πίνακας 10 (5-fold CV) | `results/cross_validation.csv` | `ml_pipeline/advanced_eval.py` |
 | Πίνακας 12 (σύγκριση, InSDN) | `results/model_comparison_insdn.csv` | `ml_pipeline/evaluate.py --insdn` |
-| Πίνακας 13 (Isolation Forest, συνθετικό) | `results/isolation_forest_metrics.csv` | `ml_pipeline/isolation_forest_detector.py` |
+| Πίνακας 13 (Isolation Forest, συνθετικό) | `results/isolation_forest_metrics_synthetic.csv` | `ml_pipeline/isolation_forest_detector.py` |
 | Isolation Forest στο InSDN | `results/isolation_forest_metrics_insdn.csv` | `ml_pipeline/isolation_forest_detector.py --insdn` |
 | Παράρτημα Β (IF tuning) | `results/isolation_forest_tuning.csv` | `ml_pipeline/hyperparameter_tuning.py` |
 | Adversarial (Original vs Robust RF) | `results/adv_robust_*.csv` | `ml_pipeline/adversarial_training.py` |
