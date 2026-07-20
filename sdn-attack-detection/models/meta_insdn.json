@@ -1,0 +1,20 @@
+{
+  "best_model": "KNN",
+  "classes": [
+    "BFA",
+    "DDoS",
+    "DoS",
+    "Normal",
+    "Probe"
+  ],
+  "dataset": "InSDN",
+  "random_state": 42,
+  "test_size": 0.3,
+  "trained_with": {
+    "python": "3.14.4",
+    "scikit-learn": "1.9.0",
+    "numpy": "2.5.0",
+    "pandas": "3.0.3",
+    "joblib": "1.5.3"
+  }
+}

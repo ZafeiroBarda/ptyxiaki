@@ -5,8 +5,8 @@
 
 - **Μέθοδος Α — Live ανίχνευση & αντιμετώπιση** σε **Mininet / Open vSwitch**,
   με **υβριδικό Flask-based controller** (η τελική αρχιτεκτονική της
-  διπλωματικής) και **προαιρετικό Ryu/OpenFlow profile**, με αυτόματο
-  μπλοκάρισμα της επίθεσης.
+  διπλωματικής) και ένα **πειραματικό Ryu/OpenFlow profile** (μη επικυρωμένο
+  end-to-end, βλ. σημείωση παρακάτω), με αυτόματο μπλοκάρισμα της επίθεσης.
 - **Μέθοδος Β — Offline ανίχνευση με Μηχανική Μάθηση** σε δημόσιο dataset
   (τύπου **InSDN**, δομή CICFlowMeter). Εκπαίδευση & σύγκριση πολλών μοντέλων.
 
@@ -59,18 +59,27 @@ sdn-attack-detection/
     ├── thesis_outline.md          #   περίγραμμα θεωρητικού μέρους
     ├── architecture_mapping.md    #   ΧΑΡΤΟΓΡΑΦΗΣΗ κώδικα ↔ αρχιτεκτονικής PDF
     ├── bibliography.md            #   επαληθευμένες αναφορές (+ BibTeX)
-    └── Diplomatiki_Full.pdf       #   πλήρης διπλωματική (124 σελ.)
+    └── Diplomatiki_Full.pdf       #   πλήρης διπλωματική (126 σελ.)
 ```
 
 ### Δύο αρχιτεκτονικές στο ίδιο project
 1. **`app_sdn/` — η αρχιτεκτονική της διπλωματικής σου** (application-level SDN Digital Twin): Docker/Flask/sockets + **Isolation Forest (unsupervised)** + Dash/Cytoscape dashboard. Δες `docs/architecture_mapping.md`.
 2. **`ml_pipeline/` + `simulation/` + `controller/`** — Mininet/Ryu + **supervised ML**, που χρησιμεύει ως **ακαδημαϊκή σύγκριση** (επιβλεπόμενη vs μη επιβλεπόμενη ανίχνευση) και για τα θεωρητικά κεφάλαια.
 
+> **Πειραματικό Ryu/OpenFlow profile (`app_sdn/docker-compose.yml`, Mode B):**
+> το `docker compose --profile ryu up` αντικαθιστά τον standalone OVS switch
+> με πραγματικό OpenFlow 1.3 pipeline μέσω Ryu/os-ken (`simulation/mininet_ryu.py`).
+> Το προφίλ είναι πειραματικό και δεν είναι end-to-end επικυρωμένο (βλ.
+> `RESULTS_VERIFICATION.md`). Επιπλέον, το προεπιλεγμένο image του Mininet
+> container (`simulation/Dockerfile.mininet`) δεν εγκαθιστά `ryu` ούτε
+> `os-ken` — χρειάζεται πρώτα `pip install ryu` (ή `pip install os-ken`) μέσα
+> στο image, αλλιώς το `mininet_ryu.py` αποτυγχάνει με `RuntimeError`.
+
 ### Γρήγορη εκκίνηση (μία εντολή, οποιοδήποτε OS)
 ```bash
 pip install -r requirements.txt
-bash reproduce_thesis.sh   # ΠΛΗΡΗΣ αναπαραγωγή· bash run_all.sh για μόνο τον κορμό ML/DL/CV/adversarial
-pytest tests/ -v           # 144 συλλέγονται· με πλήρεις εξαρτήσεις & χωρίς ενεργό Docker stack: 137 pass, 7 skip, 0 fail
+bash reproduce_thesis.sh   # πλήρης OFFLINE αναπαραγωγή για το επιλεγμένο dataset (bash run_all.sh: μόνο ο κορμός ML/DL/CV/adversarial)
+pytest tests/ -v           # 144 συλλέγονται, 0 fail. Το πλήθος pass/skip εξαρτάται από τις διαθέσιμες προαιρετικές εξαρτήσεις (Flask, Docker/live stack) — τυπικά 136-137 pass, 7-8 skip
 ```
 Λεπτομέρειες αναπαραγωγιμότητας: **§6**.
 
@@ -109,7 +118,7 @@ python3 ml_pipeline/isolation_forest_detector.py --insdn
 στα δύο πρωτόκολλα και, μαζί με τον ~120× μικρότερο χρόνο πρόβλεψης, είναι η πρακτικά
 προτιμότερη επιλογή για ανάπτυξη σε ελεγκτή SDN.
 
-Σημαντικό εύρημα: τα network flow features είναι **log-normal**· ο λογαριθμικός μετασχηματισμός (`log1p`) ανεβάζει το Isolation Forest από **AUC 0.70 → 0.93** στα πραγματικά δεδομένα. Το BFA είναι η δυσκολότερη κλάση (F1≈0.71) λόγω ελάχιστων δειγμάτων (1.405 από 343k).
+Σημαντικό εύρημα: τα network flow features είναι **log-normal**. Ο λογαριθμικός μετασχηματισμός (`log1p`) ανεβάζει το Isolation Forest από **AUC 0.70 → 0.93** στα πραγματικά δεδομένα. Το BFA είναι η δυσκολότερη κλάση (F1≈0.71) λόγω ελάχιστων δειγμάτων (1.405 από 343k).
 
 > **Περιορισμός (δηλώνεται και στο κείμενο):** το 47,5% των εγγραφών του InSDN
 > είναι ακριβή διπλότυπα σε επίπεδο διανύσματος χαρακτηριστικών (98,8% στην
@@ -244,7 +253,7 @@ python3 ml_pipeline/evaluate.py                      # εκπαιδεύει, σ�
 |---|---|---|
 | `SWITCH_API_KEY` | `sdn-secret-2024` | Header `X-Switch-Token` για `/telemetry` |
 | `ADMIN_API_KEY` | `sdn-admin-2024` | Header `X-Admin-Token` για `/reset`, `/unblock` |
-| `DEFENSE_MODE` | `1` (ενεργό στο compose) | `1` → telemetry χωρίς έγκυρο token απορρίπτεται με 401· `0` → καταγράφεται μόνο ως injection attempt |
+| `DEFENSE_MODE` | `1` (ενεργό στο compose) | `1` → telemetry χωρίς έγκυρο token απορρίπτεται με 401, `0` → καταγράφεται μόνο ως injection attempt |
 
 > ⚠️ Οι παραπάνω τιμές είναι **demo defaults** για το απομονωμένο εργαστήριο.
 > Σε οποιαδήποτε πραγματική χρήση πρέπει να ορίζονται ισχυρά, μυστικά tokens
@@ -259,30 +268,37 @@ pip install -r requirements.txt
 bash reproduce_thesis.sh          # <- ΠΛΗΡΗΣ αναπαραγωγή ΟΛΩΝ των αποτελεσμάτων
 bash run_all.sh                   # μόνο ο βασικός κορμός (ML/DL/CV/adversarial)
 bash run_packet_level_experiment.sh   # packet-level πείραμα (Mininet+OVS, απαιτεί Docker)
-pytest tests/ -v                  # 144 συλλέγονται· με πλήρεις εξαρτήσεις & χωρίς ενεργό Docker stack: 137 pass, 7 skip, 0 fail
+pytest tests/ -v                  # 144 συλλέγονται, 0 fail. Το πλήθος pass/skip εξαρτάται από τις διαθέσιμες προαιρετικές εξαρτήσεις (Flask, Docker/live stack) — τυπικά 136-137 pass, 7-8 skip
 ```
 
-**Πλήρης έναντι βασικής αναπαραγωγής**: το `bash run_all.sh` τρέχει τον κορμό
-(dataset, κλασικά μοντέλα, cross-validation, τελική σύγκριση, adversarial
-training). Δεν καλύπτει όμως τις μελέτες διαρροής, easy/hard, ρύθμισης
-υπερπαραμέτρων, Isolation Forest και SHAP, των οποίων τα αποτελέσματα
-παρουσιάζονται επίσης στο κείμενο. Το **`bash reproduce_thesis.sh`** εκτελεί
-ρητά ΟΛΑ αυτά τα βήματα και αναφέρει στο τέλος όποιο βήμα παραλείφθηκε λόγω
-προαιρετικής εξάρτησης που λείπει (π.χ. TensorFlow για το Deep Learning). Το
-packet-level πείραμα του κεφαλαίου 6 (πραγματικά dropped packets, κάλυψη
-αντιμετώπισης) τρέχει ξεχωριστά με το **`bash run_packet_level_experiment.sh`**,
-που παράγει `results/live/mininet_run_<ts>/` και προσθέτει τη γραμμή
-`packet_level` στο ενιαίο `results/live/experiment_summary.csv`.
+**Πλήρης OFFLINE έναντι βασικής αναπαραγωγής, για το επιλεγμένο dataset**: το
+`bash run_all.sh` τρέχει τον κορμό (dataset, κλασικά μοντέλα, cross-validation,
+τελική σύγκριση, adversarial training). Δεν καλύπτει όμως τις μελέτες
+διαρροής, easy/hard, ρύθμισης υπερπαραμέτρων, Isolation Forest και SHAP, των
+οποίων τα αποτελέσματα παρουσιάζονται επίσης στο κείμενο. Το
+**`bash reproduce_thesis.sh`** εκτελεί ρητά ΟΛΑ αυτά τα offline βήματα — για
+ΕΝΑ dataset τη φορά (συνθετικό ή `--insdn`) — και αναφέρει στο τέλος όποιο
+βήμα παραλείφθηκε λόγω προαιρετικής εξάρτησης που λείπει (π.χ. TensorFlow για
+το Deep Learning). Δεν αναπαράγει τα API-level και packet-level πειράματα:
+αυτά τρέχουν ξεχωριστά με τα δικά τους scripts. Το packet-level πείραμα του
+κεφαλαίου 6 (πραγματικά dropped packets, κάλυψη αντιμετώπισης) τρέχει με το
+**`bash run_packet_level_experiment.sh`**, που παράγει
+`results/live/mininet_run_<ts>/` και προσθέτει τη γραμμή `packet_level` στο
+ενιαίο `results/live/experiment_summary.csv`. Τα API-level σενάρια τρέχουν με
+**`bash run_live_experiments.sh`**.
 
 Η παραγωγή του συνθετικού dataset είναι ντετερμινιστική (σταθερό seed), οπότε
-το `data/sdn_flows_synthetic.csv` αναδημιουργείται **bit-for-bit** — γι' αυτό
-δεν συμπεριλαμβάνεται στο zip.
+το `data/sdn_flows_synthetic.csv` αναδημιουργείται **bit-for-bit** αν χρειαστεί
+(`python3 ml_pipeline/generate_synthetic_dataset.py`). Παρ' όλα αυτά,
+περιλαμβάνεται ήδη έτοιμο και στο repo και στο zip παράδοσης, ώστε το
+`sha256sum -c MANIFEST.sha256` να περνά αμέσως μετά την αποσυμπίεση, χωρίς να
+χρειάζεται πρώτα αναπαραγωγή του.
 
 | Εντολή | Dataset | Αντιστοιχεί στο κείμενο; |
 |---|---|---|
-| `bash run_all.sh` | συνθετικό, προεπιλογή | ✅ ναι — Πίνακες 9, 10, 13, Παράρτημα Β, adversarial |
+| `bash run_all.sh` | συνθετικό, προεπιλογή | ✅ ναι — σύγκριση μοντέλων, cross-validation, Isolation Forest tuning (§6.2, §6.4, §6.7, Παράρτημα Β), adversarial |
 | `bash run_all.sh --hard` | συνθετικό + θόρυβος/επικάλυψη | ❌ όχι — παραλλαγή **ευρωστίας** (χαμηλότερα, πιο ρεαλιστικά νούμερα) |
-| `bash run_all.sh --insdn` | πραγματικό InSDN | ✅ ναι — Πίνακας 12 (χρειάζεται `data/InSDN_dataset.csv`) |
+| `bash run_all.sh --insdn` | πραγματικό InSDN | ✅ ναι — σύγκριση μοντέλων στο InSDN (§6.6, χρειάζεται `data/InSDN_dataset.csv`) |
 
 > ⚠️ Η εκδοχή `--hard` προσθέτει 15% θόρυβο και 8% επικάλυψη κλάσεων. Δίνει
 > σκόπιμα **διαφορετικά** αποτελέσματα (π.χ. RF F1 ≈ 0,995 αντί 0,9998) και
@@ -290,9 +306,10 @@ packet-level πείραμα του κεφαλαίου 6 (πραγματικά dr
 > είναι η πηγή των αριθμών του κειμένου.
 
 **Εκδόσεις βιβλιοθηκών**: τα `models/*.pkl` εκπαιδεύτηκαν με scikit-learn 1.9
-(καταγεγραμμένο στο `models/meta.json` → `trained_with`). Με παλαιότερη έκδοση
-θα δεις `InconsistentVersionWarning`· λύνεται είτε τηρώντας το
-`requirements.txt` είτε αναδημιουργώντας τα μοντέλα με `bash run_all.sh`.
+(καταγεγραμμένο στο `models/meta.json`, `models/meta_synthetic.json` και
+`models/meta_insdn.json` → `trained_with`). Με παλαιότερη έκδοση θα δεις
+`InconsistentVersionWarning`. Λύνεται είτε τηρώντας το `requirements.txt` είτε
+αναδημιουργώντας τα μοντέλα με `bash run_all.sh`.
 
 **Ακριβής αναπαραγωγιμότητα**: για δεσμευμένες εκδόσεις του ML περιβάλλοντος χρησιμοποίησε το `requirements-ml-lock.txt` (exact pins, π.χ. scikit-learn==1.9.0). Το αρχείο αυτό κλειδώνει το **ML περιβάλλον αναφοράς** (scikit-learn/pandas/numpy κ.λπ.), όχι ολόκληρη τη στοίβα: οι βιβλιοθήκες της live εφαρμογής (`dash`, `plotly`) και οι προαιρετικές (`shap`, `lightgbm`, `tensorflow`) δηλώνονται στο `requirements.txt`.
 
@@ -314,23 +331,23 @@ sha256sum -c MANIFEST.sha256
 
 | Στοιχείο κειμένου | Αρχείο | Παράγεται από |
 |---|---|---|
-| Πίνακας 9 (σύγκριση, συνθετικό) | `results/model_comparison.csv` | `ml_pipeline/evaluate.py` |
-| Πίνακας 10 (5-fold CV) | `results/cross_validation.csv` | `ml_pipeline/advanced_eval.py` |
-| Πίνακας 12 (σύγκριση, InSDN) | `results/model_comparison_insdn.csv` | `ml_pipeline/evaluate.py --insdn` |
-| Πίνακας 13 (Isolation Forest, συνθετικό) | `results/isolation_forest_metrics_synthetic.csv` | `ml_pipeline/isolation_forest_detector.py` |
-| Isolation Forest στο InSDN | `results/isolation_forest_metrics_insdn.csv` | `ml_pipeline/isolation_forest_detector.py --insdn` |
-| Παράρτημα Β (IF tuning) | `results/isolation_forest_tuning.csv` | `ml_pipeline/hyperparameter_tuning.py` |
+| Σύγκριση μοντέλων, συνθετικό (§6.2) | `results/model_comparison.csv` | `ml_pipeline/evaluate.py` |
+| 5-fold cross-validation (§6.4) | `results/cross_validation.csv` | `ml_pipeline/advanced_eval.py` |
+| Σύγκριση μοντέλων, InSDN (§6.6) | `results/model_comparison_insdn.csv` | `ml_pipeline/evaluate.py --insdn` |
+| Isolation Forest, συνθετικό (§6.7) | `results/isolation_forest_metrics_synthetic.csv` | `ml_pipeline/isolation_forest_detector.py` |
+| Isolation Forest στο InSDN (§6.7) | `results/isolation_forest_metrics_insdn.csv` | `ml_pipeline/isolation_forest_detector.py --insdn` |
+| Ρύθμιση υπερπαραμέτρων IF (§6.7, Παράρτημα Β) | `results/isolation_forest_tuning.csv` | `ml_pipeline/hyperparameter_tuning.py` |
 | Adversarial (Original vs Robust RF) | `results/adv_robust_*.csv` | `ml_pipeline/adversarial_training.py` |
 | Σχήματα IF confusion/ROC/scores | `results/thesis_if_*.png` | `ml_pipeline/thesis_eval.py` (stratified subsample 60k του InSDN) |
-| Live σενάρια (API-level) | `results/live/*.csv` | `run_live_experiments.sh` |
-| Πίνακας 6-12 (packet-level κάλυψη, TTL sweep) | `results/live/mininet_run_*/summary.json`, `results/live/experiment_summary.csv` | `run_packet_level_experiment.sh` |
+| Live σενάρια (API-level, §6.8) | `results/live/*.csv` | `run_live_experiments.sh` |
+| Packet-level κάλυψη, TTL sweep (§6.9-6.10) | `results/live/mininet_run_*/summary.json`, `results/live/experiment_summary.csv` | `run_packet_level_experiment.sh` |
 
 Σημείωση: στο πλήρες InSDN ο KNN πετυχαίνει οριακά υψηλότερο macro-F1 (0,952)
-από το Random Forest (0,945), αλλά με χρόνο πρόβλεψης ~150× μεγαλύτερο· το
+από το Random Forest (0,945), αλλά με χρόνο πρόβλεψης ~150× μεγαλύτερο. Το
 κείμενο το αναφέρει ρητά και εξηγεί γιατί το Random Forest παραμένει η
 πρακτικά προτιμότερη επιλογή. Το `results/thesis_comparison.csv` προέρχεται
 από το subsampled setup του `thesis_eval.py` και είναι **συμπληρωματικό** —
-δεν είναι η πηγή του Πίνακα 12.
+δεν είναι η πηγή της σύγκρισης μοντέλων στο InSDN (§6.6).
 
 ---
 

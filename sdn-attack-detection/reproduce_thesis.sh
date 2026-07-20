@@ -7,7 +7,7 @@
 # training) για ΕΝΑ dataset τη φορά. ΔΕΝ αναπαράγει τα packet-level πειράματα.
 #
 # ΠΡΟΣΟΧΗ:
-#   * Χωρίς flag τρέχει το synthetic offline workflow· με --insdn το InSDN workflow.
+#   * Χωρίς flag τρέχει το synthetic offline workflow, με --insdn το InSDN workflow.
 #     Το --insdn είναι εκτέλεση ΑΞΙΟΛΟΓΗΣΗΣ και ΔΕΝ αντικαθιστά τα deployable
 #     synthetic artifacts (βλ. train.py). Τα offline IF artifacts φέρουν επίθεμα
 #     dataset (_synthetic/_insdn), ώστε οι δύο εκτελέσεις να μη συγκρούονται.
