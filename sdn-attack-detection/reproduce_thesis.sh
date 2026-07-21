@@ -55,8 +55,13 @@ echo "==================================================================="
 echo ">>> Μελέτη διαρροής δεδομένων (duplicates, group-aware split)"
 python3 ml_pipeline/leakage_study.py $FLAG
 
-echo ">>> Σύγκριση easy/hard εκδοχής του συνθετικού συνόλου"
-python3 ml_pipeline/synthetic_mode_study.py
+if [ -z "$FLAG" ]; then
+    echo ">>> Σύγκριση easy/hard εκδοχής του συνθετικού συνόλου"
+    python3 ml_pipeline/synthetic_mode_study.py
+else
+    echo ">>> ΠΑΡΑΛΕΙΨΗ easy/hard σύγκρισης: αφορά αποκλειστικά το συνθετικό σύνολο,"
+    echo ">>> δεν έχει νόημα για InSDN."
+fi
 
 echo ">>> Βελτιστοποίηση υπερπαραμέτρων"
 python3 ml_pipeline/hyperparameter_tuning.py $FLAG
@@ -81,7 +86,10 @@ python3 ml_pipeline/mitigation_analysis.py
 echo ""
 echo "==================================================================="
 if [ ${#MISSING[@]} -eq 0 ]; then
-    echo " ΟΛΟΚΛΗΡΩΘΗΚΕ — αναπαράχθηκαν ΟΛΑ τα αποτελέσματα του κειμένου."
+    echo " ΟΛΟΚΛΗΡΩΘΗΚΕ — αναπαράχθηκαν όλα τα προβλεπόμενα OFFLINE αποτελέσματα"
+    echo " του επιλεγμένου workflow. Τα API-level και packet-level πειράματα"
+    echo " (και το TTL sweep / repeated cycles) εκτελούνται χωριστά, βλ."
+    echo " run_live_experiments.sh / run_packet_level_experiment.sh."
 else
     echo " ΟΛΟΚΛΗΡΩΘΗΚΕ ΜΕΡΙΚΩΣ."
     echo " Λείπουν οι εξής προαιρετικές εξαρτήσεις: ${MISSING[*]}"

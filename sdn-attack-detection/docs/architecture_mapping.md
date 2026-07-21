@@ -1,7 +1,7 @@
 # Χαρτογράφηση Υλοποίησης ↔ Αρχιτεκτονικής Διπλωματικής
 
-Αυτό το έγγραφο δείχνει πώς ο κώδικας του `app_sdn/` υλοποιεί ΑΚΡΙΒΩΣ την
-αρχιτεκτονική microservices που περιγράφεται στη διπλωματική (SDN Digital Twin).
+Αυτό το έγγραφο χαρτογραφεί την κύρια application-level αρχιτεκτονική που
+περιγράφεται στη διπλωματική (SDN Digital Twin) πάνω στον κώδικα του `app_sdn/`.
 
 ## Τα τέσσερα επίπεδα (Planes)
 
@@ -23,7 +23,7 @@
 | Isolation Forest, ανίχνευση outliers με f(x) < 0 | `DefenseEngine.analyze()` (`iso.predict() == -1`) |
 | Automated Mitigation (drop κακόβουλης ροής) | `controller._mitigate` → `FlowTable.install(DROP)` |
 | Real-time Feedback / callbacks dashboard | `dashboard.update()` με `dcc.Interval` |
-| RESTful API Switch↔Controller (προσομοιώνει OpenFlow) | endpoints `/register`, `/telemetry`, `/flow_table` |
+| RESTful API Switch↔Controller (application-level ανάλογο του OpenFlow control channel, όχι πλήρης προσομοίωση) | endpoints `/register`, `/telemetry`, `/flow_table` |
 | Infrastructure as Code | `docker-compose.yml` (controller, dashboard, switch) |
 
 ## Μεθοδολογία (Κεφ. 5 του PDF) ↔ ροή εκτέλεσης
@@ -44,9 +44,9 @@ Inference → Automated Mitigation**) υλοποιείται ως εξής:
 |---|---|
 | Flow Table Exhaustion (DDoS) | `simulate.py` → `attack_burst` (πολλές μικρο-ροές) ✅ |
 | Network Reconnaissance (Port/IP Scan) | ίδια υπογραφή: υψηλό flow_count + short_ratio ✅ |
-| Lateral Movement | επεκτείνεται με πολλαπλές πηγές-στόχους (μελλοντικό) |
-| Data Exfiltration | ανιχνεύσιμο ως ασυνήθιστος όγκος εξόδου (μελλοντικό) |
-| MitM (ARP/Flow spoofing) | απαιτεί έλεγχο ακεραιότητας ροών (μελλοντικό) |
+| Lateral Movement | υλοποιημένο ως API-level σενάριο (`run_live_experiments.sh`), βλ. `RESULTS_VERIFICATION.md` ✅ |
+| Data Exfiltration | υλοποιημένο ως API-level σενάριο (`run_live_experiments.sh`), βλ. `RESULTS_VERIFICATION.md` ✅ |
+| MitM (ARP/Flow spoofing) | αξιολογήθηκε ως API-level σενάριο· **δεν** ανιχνεύεται από την στατιστική ανίχνευση (TP=0), βλ. `RESULTS_VERIFICATION.md` §ARP Spoof/MITM |
 
 ## Τι από το προηγούμενο υλικό (Mininet/Ryu) παραμένει χρήσιμο
 

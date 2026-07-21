@@ -18,10 +18,14 @@
 sdn-attack-detection/
 ├── README.md
 ├── requirements.txt
-├── run_all.sh                     # τρέχει ΟΛΟ το Python pipeline με 1 εντολή
+├── run_all.sh                     # βασικός κορμός ML pipeline με 1 εντολή
+├── reproduce_thesis.sh            # πλήρες offline workflow (§6)
+├── run_packet_level_experiment.sh # πραγματικό Mininet+OVS πείραμα
+├── run_live_experiments.sh        # API-level σενάρια επιθέσεων
 ├── data/                          # datasets (συνθετικά + InSDN)
 ├── models/                        # αποθηκευμένα μοντέλα (.pkl)
-├── results/                       # γραφήματα & μετρικές (12 αρχεία)
+├── results/                       # γραφήματα & μετρικές — 60+ top-level artifacts
+│                                   #   + results/live/ (live/packet-level runs)
 ├── ml_pipeline/                   # === ΜΕΘΟΔΟΣ Β (offline ML) ===
 │   ├── config.py                  #   κεντρικές ρυθμίσεις & features
 │   ├── generate_synthetic_dataset.py   # γεννήτορας (--hard: θόρυβος/επικάλυψη)
@@ -31,22 +35,11 @@ sdn-attack-detection/
 │   ├── deep_learning.py           #   2η εκδοχή: Deep MLP + 1D-CNN (Keras)
 │   ├── advanced_eval.py           #   cross-validation + ROC curves
 │   ├── final_comparison.py        #   ενιαία σύγκριση ΟΛΩΝ των μοντέλων
-│   └── detection_engine.py        #   κοινή μηχανή ανίχνευσης (χωρίς Ryu)
-├── simulation/                    # === ΜΕΘΟΔΟΣ Α (Mininet, Linux) ===
-│   ├── topology.py                #   τοπολογία 6 hosts + 1 switch
-│   ├── topology_multi.py          #   2η εκδοχή: tree, 3 switches (core+edge)
-│   ├── traffic_normal.py          #   νόμιμη κίνηση (iperf/ping)
-│   ├── traffic_attack.py          #   επιθέσεις (DDoS/SYN flood/scan/BFA)
-│   └── collect_flow_stats.py      #   συλλογή δικού σου dataset σε CSV
-├── controller/                    # === ΜΕΘΟΔΟΣ Α (controllers) ===
-│   ├── detection_controller.py    #   Ryu: learning switch + live ML + mitigation
-│   ├── pox_detection.py           #   2η εκδοχή controller: POX
-│   ├── train_live_model.py        #   εκπαίδευση ελαφριού live μοντέλου
-│   └── offline_replay.py          #   live detection ΧΩΡΙΣ Mininet (τρέχει παντού)
-├── tests/
-│   ├── test_pipeline.py           #   11 αυτοματοποιημένα tests (pytest)
-│   └── test_app_sdn.py            #   7 tests για το application-level SDN
-├── app_sdn/                       # === ΑΡΧΙΤΕΚΤΟΝΙΚΗ ΔΙΠΛΩΜΑΤΙΚΗΣ (microservices) ===
+│   ├── isolation_forest_detector.py    #   Isolation Forest (unsupervised, offline)
+│   ├── hyperparameter_tuning.py   #   ρύθμιση υπερπαραμέτρων IF (Παράρτημα Β)
+│   ├── thesis_eval.py             #   επίσημα σχήματα IF πάνω στο InSDN
+│   └── detection_engine.py        #   κοινή μηχανή ανίχνευσης
+├── app_sdn/                       # === ΜΕΘΟΔΟΣ Α, ΤΡΕΧΟΥΣΑ ΑΡΧΙΤΕΚΤΟΝΙΚΗ (microservices) ===
 │   ├── controller.py              #   Control Plane + Defense Plane (Flask + Isolation Forest)
 │   ├── switch.py                  #   Data Plane (application-level overlay, UDP sockets)
 │   ├── dashboard.py               #   Management Plane (Dash/Cytoscape, real-time)
@@ -55,16 +48,39 @@ sdn-attack-detection/
 │   ├── Dockerfile                 #   image για τις υπηρεσίες
 │   ├── docker-compose.yml         #   orchestration (controller+dashboard+switch)
 │   └── requirements.txt
-└── docs/
-    ├── thesis_outline.md          #   περίγραμμα θεωρητικού μέρους
+├── simulation/                    # === ΜΕΘΟΔΟΣ Α, Mininet (Linux) ===
+│   ├── mininet_live.py            #   πραγματικό Mininet+OVS, packet-level πείραμα (τρέχον)
+│   ├── mininet_ryu.py             #   πειραματικό OpenFlow 1.3 profile (Ryu/os-ken, μη επικυρωμένο)
+│   ├── ryu_bridge.py, patch_ryu.py, flow_telemetry.py,
+│   │   control_plane_saturation.py, flow_injection_attack.py   #   υποστηρικτικά για το live stack
+│   ├── scenarios/                 #   σενάρια επιθέσεων για το packet-level πείραμα
+│   ├── Dockerfile.mininet         #   image για το Mininet container
+│   └── topology.py, topology_multi.py, traffic_normal.py,
+│       traffic_attack.py, collect_flow_stats.py   #   παλαιότερος Ryu/POX prototype (βλ. controller/)
+├── controller/                    # === ΠΑΛΑΙΟΤΕΡΟ Ryu/POX prototype (όχι η τρέχουσα αρχιτεκτονική) ===
+│   ├── detection_controller.py    #   Ryu: learning switch + live ML + mitigation
+│   ├── pox_detection.py           #   εναλλακτικός controller: POX
+│   ├── train_live_model.py        #   εκπαίδευση ελαφριού live μοντέλου (ενεργό, χρησιμοποιείται στο run_all.sh)
+│   └── offline_replay.py          #   live detection ΧΩΡΙΣ Mininet (ενεργό, χρησιμοποιείται στο run_all.sh)
+├── tests/                         # 10 modules, 147 tests συνολικά (βλ. §6)
+│   ├── test_pipeline.py, test_model_regression.py, test_results_integrity.py
+│   ├── test_app_sdn.py, test_api_controller.py, test_security_validation.py
+│   ├── test_live_scenarios.py, test_drop_lease_renewal.py, test_flow_telemetry.py
+│   └── test_docker_health.py
+├── scripts/                       # βοηθητικά scripts για live artifacts
+└── docs/                           # ό,τι ΠΡΑΓΜΑΤΙΚΑ μπαίνει στο τελικό zip (βλ. make_final_zip.sh)
+    ├── Diplomatiki_Full.pdf       #   πλήρης διπλωματική (126 σελ.) — το μόνο PDF στο zip
     ├── architecture_mapping.md    #   ΧΑΡΤΟΓΡΑΦΗΣΗ κώδικα ↔ αρχιτεκτονικής PDF
-    ├── bibliography.md            #   επαληθευμένες αναφορές (+ BibTeX)
-    └── Diplomatiki_Full.pdf       #   πλήρης διπλωματική (126 σελ.)
+    └── figures/                   #   εικόνες που ενσωματώνονται στο PDF
 ```
+Το `docs/` του repo έχει και μερικά εσωτερικά working docs (`thesis_outline.md`,
+`bibliography.md`, κ.λπ.) που ΔΕΝ συμπεριλαμβάνονται στο τελικό zip — γι' αυτό
+δεν εμφανίζονται παραπάνω.
 
 ### Δύο αρχιτεκτονικές στο ίδιο project
-1. **`app_sdn/` — η αρχιτεκτονική της διπλωματικής σου** (application-level SDN Digital Twin): Docker/Flask/sockets + **Isolation Forest (unsupervised)** + Dash/Cytoscape dashboard. Δες `docs/architecture_mapping.md`.
-2. **`ml_pipeline/` + `simulation/` + `controller/`** — Mininet/Ryu + **supervised ML**, που χρησιμεύει ως **ακαδημαϊκή σύγκριση** (επιβλεπόμενη vs μη επιβλεπόμενη ανίχνευση) και για τα θεωρητικά κεφάλαια.
+1. **`app_sdn/` — η αρχιτεκτονική της διπλωματικής σου** (application-level SDN Digital Twin): Docker/Flask/sockets + **Isolation Forest (unsupervised)** + Dash/Cytoscape dashboard. Το packet-level πείραμα (`simulation/mininet_live.py` + πραγματικό OVS, βλ. `run_packet_level_experiment.sh`) τρέχει πάνω σε αυτή την αρχιτεκτονική. Δες `docs/architecture_mapping.md`.
+2. **`ml_pipeline/`** — offline **supervised ML** (6 κλασικά μοντέλα + DL) πάνω σε synthetic/InSDN datasets, που χρησιμεύει ως **ακαδημαϊκή σύγκριση** (επιβλεπόμενη vs μη επιβλεπόμενη ανίχνευση).
+3. **`controller/` + το `topology*.py`/`traffic_*.py`/`collect_flow_stats.py` μέρος του `simulation/`** — παλαιότερο Mininet/Ryu/POX prototype, δεν είναι η τρέχουσα αρχιτεκτονική (`train_live_model.py`/`offline_replay.py` του `controller/` παραμένουν ενεργά στο `run_all.sh`).
 
 > **Πειραματικό Ryu/OpenFlow profile (`app_sdn/docker-compose.yml`, Mode B):**
 > το `docker compose --profile ryu up` αντικαθιστά τον standalone OVS switch
@@ -79,7 +95,7 @@ sdn-attack-detection/
 ```bash
 pip install -r requirements.txt
 bash reproduce_thesis.sh   # πλήρης OFFLINE αναπαραγωγή για το επιλεγμένο dataset (bash run_all.sh: μόνο ο κορμός ML/DL/CV/adversarial)
-pytest tests/ -v           # 144 συλλέγονται, 0 fail. Το πλήθος pass/skip εξαρτάται από τις διαθέσιμες προαιρετικές εξαρτήσεις (Flask, Docker/live stack) — τυπικά 136-137 pass, 7-8 skip
+pytest tests/ -v           # συλλέγονται 147 tests. Σε περιβάλλον χωρίς διαθέσιμο Docker εκτελούνται επιτυχώς 139 και παραλείπονται 8 που απαιτούν Docker/live υποδομή
 ```
 Λεπτομέρειες αναπαραγωγιμότητας: **§6**.
 
@@ -111,7 +127,7 @@ python3 ml_pipeline/isolation_forest_detector.py --insdn
 ~0.94–0.95, ενώ τα ασθενέστερα μοντέλα καταρρέουν (SVM 0.656, MLP 0.745). Η κατάρρευση
 δείχνει ότι η υψηλή τους επίδοση σε **τυχαίο** διαχωρισμό (SVM 0.832, MLP 0.931) οφειλόταν
 στη διαρροή διπλότυπων. Δύο ανεξάρτητοι group-aware διαχωρισμοί
-(`model_comparison_insdn.csv` και `leakage_split_comparison.csv`) δίνουν σχεδόν ταυτόσημες
+(`model_comparison_insdn.csv` και `leakage_split_comparison_insdn.csv`) δίνουν σχεδόν ταυτόσημες
 τιμές για όλα τα μοντέλα **εκτός του KNN**: ο KNN είναι ασταθής (macro-F1 0.95 vs 0.77
 ανάλογα με τη σύνθεση των ομάδων στο train), λόγω της εξάρτησής του από τους k γείτονες
 σε δεδομένα με πολλά διπλότυπα. Το **Random Forest** παραμένει σταθερό (0.946–0.947) και
@@ -265,10 +281,10 @@ python3 ml_pipeline/evaluate.py                      # εκπαιδεύει, σ�
 
 ```bash
 pip install -r requirements.txt
-bash reproduce_thesis.sh          # <- ΠΛΗΡΗΣ αναπαραγωγή ΟΛΩΝ των αποτελεσμάτων
+bash reproduce_thesis.sh          # πλήρης OFFLINE αναπαραγωγή για το επιλεγμένο dataset
 bash run_all.sh                   # μόνο ο βασικός κορμός (ML/DL/CV/adversarial)
 bash run_packet_level_experiment.sh   # packet-level πείραμα (Mininet+OVS, απαιτεί Docker)
-pytest tests/ -v                  # 144 συλλέγονται, 0 fail. Το πλήθος pass/skip εξαρτάται από τις διαθέσιμες προαιρετικές εξαρτήσεις (Flask, Docker/live stack) — τυπικά 136-137 pass, 7-8 skip
+pytest tests/ -v                  # συλλέγονται 147 tests. Σε περιβάλλον χωρίς διαθέσιμο Docker εκτελούνται επιτυχώς 139 και παραλείπονται 8 που απαιτούν Docker/live υποδομή
 ```
 
 **Πλήρης OFFLINE έναντι βασικής αναπαραγωγής, για το επιλεγμένο dataset**: το
@@ -296,9 +312,10 @@ pytest tests/ -v                  # 144 συλλέγονται, 0 fail. Το π�
 
 | Εντολή | Dataset | Αντιστοιχεί στο κείμενο; |
 |---|---|---|
-| `bash run_all.sh` | συνθετικό, προεπιλογή | ✅ ναι — σύγκριση μοντέλων, cross-validation, Isolation Forest tuning (§6.2, §6.4, §6.7, Παράρτημα Β), adversarial |
+| `bash run_all.sh` | συνθετικό, προεπιλογή | ✅ ναι — βασικός κορμός: supervised ML, DL, cross-validation, extended comparison, adversarial training (§6.2, §6.4) |
 | `bash run_all.sh --hard` | συνθετικό + θόρυβος/επικάλυψη | ❌ όχι — παραλλαγή **ευρωστίας** (χαμηλότερα, πιο ρεαλιστικά νούμερα) |
 | `bash run_all.sh --insdn` | πραγματικό InSDN | ✅ ναι — σύγκριση μοντέλων στο InSDN (§6.6, χρειάζεται `data/InSDN_dataset.csv`) |
+| `bash reproduce_thesis.sh` | συνθετικό ή `--insdn` | ✅ ναι — πλήρες offline workflow: μαζί με leakage study, easy/hard, Isolation Forest tuning (§6.7, Παράρτημα Β), offline IF και SHAP |
 
 > ⚠️ Η εκδοχή `--hard` προσθέτει 15% θόρυβο και 8% επικάλυψη κλάσεων. Δίνει
 > σκόπιμα **διαφορετικά** αποτελέσματα (π.χ. RF F1 ≈ 0,995 αντί 0,9998) και

@@ -6,12 +6,12 @@ hyperparameter_tuning.py  (βελτιστοποίηση υπερπαραμέτρ
 **Isolation Forest** (ο κεντρικός αλγόριθμος της διπλωματικής) και σύγκριση
 με βελτιστοποιημένο **Random Forest** (επιβλεπόμενο).
 
-Παράγει:
-  results/isolation_forest_tuning.csv   (όλες οι διαμορφώσεις, ταξινομημένες)
-  results/isolation_forest_tuning.png   (επίδραση υπερπαραμέτρων στο ROC AUC)
-  results/rf_tuning.csv                 (καλύτερες παράμετροι Random Forest)
-  models/isolation_forest_best.pkl      (το βέλτιστο IF)
-  models/best_model.pkl                 (ενημερωμένο βέλτιστο supervised)
+Παράγει (suffix _insdn μόνο με --insdn, ώστε να μη γράφονται πάνω στα synthetic):
+  results/isolation_forest_tuning[_insdn].csv   (όλες οι διαμορφώσεις, ταξινομημένες)
+  results/isolation_forest_tuning[_insdn].png   (επίδραση υπερπαραμέτρων στο ROC AUC)
+  results/rf_tuning[_insdn].csv                 (καλύτερες παράμετροι Random Forest)
+  models/isolation_forest_best[_insdn].pkl      (το βέλτιστο IF)
+  models/best_model_tuned[_insdn].pkl           (το βελτιστοποιημένο supervised)
 
 Χρήση:
   python3 ml_pipeline/hyperparameter_tuning.py
@@ -52,6 +52,9 @@ def tune_isolation_forest(use_insdn=False):
     print("=" * 64)
     print(" ΒΕΛΤΙΣΤΟΠΟΙΗΣΗ ISOLATION FOREST")
     print("=" * 64)
+
+    # Ίδια σύμβαση ονομασίας με το train.py: suffix _insdn μόνο για το InSDN run.
+    suffix = "_insdn" if use_insdn else ""
 
     df = preprocess.load_insdn() if use_insdn else preprocess.load_synthetic()
     feats = [c for c in config.FEATURE_COLUMNS if c in df.columns]
@@ -153,19 +156,19 @@ def tune_isolation_forest(use_insdn=False):
     # αποφευχθεί το σφάλμα ανάθεσης float σε string column (pandas 3.x).
     res["test_roc_auc"] = [round(test_auc, 4)] + [None] * (len(res) - 1)
     res["test_f1"] = [round(test_f1, 4)] + [None] * (len(res) - 1)
-    res.to_csv(os.path.join(config.RESULTS_DIR, "isolation_forest_tuning.csv"), index=False)
+    res.to_csv(os.path.join(config.RESULTS_DIR, f"isolation_forest_tuning{suffix}.csv"), index=False)
 
     # Αποθήκευση του μοντέλου της βέλτιστης (κατά validation) διαμόρφωσης
     best_iso = final_iso
-    joblib.dump(best_iso, os.path.join(config.MODELS_DIR, "isolation_forest_best.pkl"))
-    joblib.dump(scaler, os.path.join(config.MODELS_DIR, "isolation_forest_best_scaler.pkl"))
-    print("\n[OK] models/isolation_forest_best.pkl")
+    joblib.dump(best_iso, os.path.join(config.MODELS_DIR, f"isolation_forest_best{suffix}.pkl"))
+    joblib.dump(scaler, os.path.join(config.MODELS_DIR, f"isolation_forest_best_scaler{suffix}.pkl"))
+    print(f"\n[OK] models/isolation_forest_best{suffix}.pkl")
 
-    _plot_iso_tuning(res)
+    _plot_iso_tuning(res, suffix)
     return res
 
 
-def _plot_iso_tuning(res):
+def _plot_iso_tuning(res, suffix=""):
     fig, axes = plt.subplots(1, 3, figsize=(16, 5))
     for ax, param in zip(axes, ["n_estimators", "contamination", "max_features"]):
         grp = res.groupby(param)["val_roc_auc"].agg(["mean", "std"]).reset_index()
@@ -177,7 +180,7 @@ def _plot_iso_tuning(res):
         ax.set_title(f"Επίδραση: {param}")
     plt.suptitle("Isolation Forest — Επίδραση υπερπαραμέτρων στο ROC AUC", y=1.02)
     plt.tight_layout()
-    out = os.path.join(config.RESULTS_DIR, "isolation_forest_tuning.png")
+    out = os.path.join(config.RESULTS_DIR, f"isolation_forest_tuning{suffix}.png")
     plt.savefig(out, dpi=150, bbox_inches="tight"); plt.close()
     print(f"[OK] {out}")
 
@@ -189,6 +192,9 @@ def tune_random_forest(use_insdn=False, n_iter=25):
     print("\n" + "=" * 64)
     print(" ΒΕΛΤΙΣΤΟΠΟΙΗΣΗ RANDOM FOREST (supervised)")
     print("=" * 64)
+
+    # Ίδια σύμβαση ονομασίας με το train.py: suffix _insdn μόνο για το InSDN run.
+    suffix = "_insdn" if use_insdn else ""
 
     # Group-aware, leakage-resistant tuning: δουλεύουμε στα ΑΚΑΤΕΡΓΑΣΤΑ
     # χαρακτηριστικά, με το scaling μέσα σε Pipeline (ανά fold) και group split
@@ -237,11 +243,11 @@ def tune_random_forest(use_insdn=False, n_iter=25):
     clean_params = {k.replace("model__", ""): v for k, v in search.best_params_.items()}
     pd.DataFrame([{**clean_params,
                    "cv_f1": search.best_score_, "test_f1": test_f1}]).to_csv(
-        os.path.join(config.RESULTS_DIR, "rf_tuning.csv"), index=False)
+        os.path.join(config.RESULTS_DIR, f"rf_tuning{suffix}.csv"), index=False)
 
     # αποθήκευσε το βελτιστοποιημένο supervised μοντέλο
-    joblib.dump(best, os.path.join(config.MODELS_DIR, "best_model_tuned.pkl"))
-    print("[OK] models/best_model_tuned.pkl, results/rf_tuning.csv")
+    joblib.dump(best, os.path.join(config.MODELS_DIR, f"best_model_tuned{suffix}.pkl"))
+    print(f"[OK] models/best_model_tuned{suffix}.pkl, results/rf_tuning{suffix}.csv")
     return search
 
 

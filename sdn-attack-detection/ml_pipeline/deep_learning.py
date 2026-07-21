@@ -9,10 +9,10 @@ deep_learning.py  (ΜΕΘΟΔΟΣ Β — 2η εκδοχή: Deep Learning)
   1. Deep MLP (πλήρως συνδεδεμένο νευρωνικό δίκτυο)
   2. 1D-CNN (συνελικτικό — αντιμετωπίζει τα features ως 1D σήμα)
 
-Παράγει:
-  results/dl_training_history.png   (καμπύλες loss/accuracy ανά εποχή)
-  results/dl_confusion_matrix.png
-  results/dl_comparison.csv
+Παράγει (suffix _insdn μόνο με --insdn, ώστε να μη γράφονται πάνω στα synthetic):
+  results/dl_training_history[_insdn].png   (καμπύλες loss/accuracy ανά εποχή)
+  results/dl_confusion_matrix[_insdn].png
+  results/dl_comparison[_insdn].csv
 
 Χρήση:
   python3 ml_pipeline/deep_learning.py
@@ -118,6 +118,9 @@ def plot_confusion(y_true, y_pred, class_names, out_path, title):
 
 def main(use_insdn=False, epochs=40):
     os.makedirs(config.RESULTS_DIR, exist_ok=True)
+    # Ίδια σύμβαση ονομασίας με το train.py: suffix _insdn μόνο για το InSDN
+    # run, ώστε να μην αντικαθίστανται τα synthetic αρχεία (και αντίστροφα).
+    suffix = "_insdn" if use_insdn else ""
 
     df = preprocess.load_insdn() if use_insdn else preprocess.load_synthetic()
     data = preprocess.prepare(df, scale=True)
@@ -175,7 +178,7 @@ def main(use_insdn=False, epochs=40):
     print("DEEP LEARNING — ΑΠΟΤΕΛΕΣΜΑΤΑ")
     print("=" * 60)
     print(res_df.to_string(index=False))
-    res_df.to_csv(os.path.join(config.RESULTS_DIR, "dl_comparison.csv"), index=False)
+    res_df.to_csv(os.path.join(config.RESULTS_DIR, f"dl_comparison{suffix}.csv"), index=False)
 
     # καλύτερο DL μοντέλο για το confusion matrix
     best_row = res_df.iloc[0]
@@ -184,9 +187,9 @@ def main(use_insdn=False, epochs=40):
     print(classification_report(y_test, best_pred, target_names=class_names,
                                 digits=4, zero_division=0))
 
-    plot_history(histories, os.path.join(config.RESULTS_DIR, "dl_training_history.png"))
+    plot_history(histories, os.path.join(config.RESULTS_DIR, f"dl_training_history{suffix}.png"))
     plot_confusion(y_test, best_pred, class_names,
-                   os.path.join(config.RESULTS_DIR, "dl_confusion_matrix.png"),
+                   os.path.join(config.RESULTS_DIR, f"dl_confusion_matrix{suffix}.png"),
                    f"Confusion Matrix — {best_row['model']} (Deep Learning)")
     print("\n[ΟΛΟΚΛΗΡΩΘΗΚΕ] DL αποτελέσματα στο results/.")
     return res_df

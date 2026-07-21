@@ -1,13 +1,13 @@
 split,model,accuracy,macro_f1,test_leaked_pct
-random,Random Forest,0.9899,0.9448,50.2
-random,Decision Tree,0.9893,0.9435,50.2
-random,KNN,0.9898,0.9523,50.2
-random,MLP (Neural Net),0.974,0.9306,50.2
-random,Logistic Regression,0.9107,0.7289,50.2
-random,SVM (RBF),0.9386,0.8322,50.2
-group,Random Forest,0.9892,0.9472,0.0
-group,Decision Tree,0.9892,0.9428,0.0
-group,KNN,0.7472,0.7728,0.0
-group,MLP (Neural Net),0.7379,0.7408,0.0
-group,Logistic Regression,0.91,0.7263,0.0
-group,SVM (RBF),0.7025,0.652,0.0
+random,Random Forest,0.9998,0.9998,0.0
+random,Decision Tree,0.9958,0.9949,0.0
+random,KNN,0.9893,0.9885,0.0
+random,MLP (Neural Net),0.9974,0.9974,0.0
+random,Logistic Regression,0.9953,0.9951,0.0
+random,SVM (RBF),0.9969,0.9969,0.0
+group,Random Forest,0.9999,0.9999,0.0
+group,Decision Tree,0.9958,0.9947,0.0
+group,KNN,0.9887,0.9879,0.0
+group,MLP (Neural Net),0.9966,0.9966,0.0
+group,Logistic Regression,0.9943,0.9939,0.0
+group,SVM (RBF),0.9974,0.9974,0.0

@@ -6,14 +6,14 @@ final_comparison.py  (ΜΕΘΟΔΟΣ Β — τελική συγκεντρωτι�
 σε έναν ενιαίο πίνακα και ένα συγκεντρωτικό γράφημα — ιδανικό για το κεφάλαιο
 "Πειράματα & Αποτελέσματα" της διπλωματικής.
 
-Διαβάζει:
-  results/model_comparison.csv   (από train.py / evaluate.py)
-  results/dl_comparison.csv      (από deep_learning.py)
+Διαβάζει (suffix _insdn μόνο με --insdn):
+  results/model_comparison[_insdn].csv   (από train.py / evaluate.py)
+  results/dl_comparison[_insdn].csv      (από deep_learning.py)
 Αν λείπουν, τα παράγει τρέχοντας τα αντίστοιχα modules.
 
 Παράγει:
-  results/final_comparison.png
-  results/final_comparison.csv
+  results/final_comparison[_insdn].png
+  results/final_comparison[_insdn].csv
 """
 
 import os
@@ -31,29 +31,41 @@ sns.set_theme(style="whitegrid")
 
 
 def ensure_results(use_insdn=False):
-    mc = os.path.join(config.RESULTS_DIR, "model_comparison.csv")
-    dl = os.path.join(config.RESULTS_DIR, "dl_comparison.csv")
+    suffix = "_insdn" if use_insdn else ""
+    mc = os.path.join(config.RESULTS_DIR, f"model_comparison{suffix}.csv")
+    dl = os.path.join(config.RESULTS_DIR, f"dl_comparison{suffix}.csv")
     if not os.path.exists(mc):
-        print("[*] Λείπει model_comparison.csv — τρέχω train.py...")
+        print(f"[*] Λείπει {os.path.basename(mc)} — τρέχω train.py...")
         import train
         train.main(use_insdn=use_insdn)
     if not os.path.exists(dl):
-        print("[*] Λείπει dl_comparison.csv — τρέχω deep_learning.py...")
-        import deep_learning
-        deep_learning.main(use_insdn=use_insdn, epochs=30)
+        print(f"[*] Λείπει {os.path.basename(dl)} — τρέχω deep_learning.py...")
+        try:
+            import deep_learning
+            deep_learning.main(use_insdn=use_insdn, epochs=30)
+        except ImportError as e:
+            print(f"[INFO] Deep Learning μη διαθέσιμο ({e}).")
+            print("[INFO] Η σύγκριση θα περιλάβει μόνο τα διαθέσιμα κλασικά μοντέλα.")
+            dl = None
     return mc, dl
 
 
 def main(use_insdn=False):
+    suffix = "_insdn" if use_insdn else ""
     mc_path, dl_path = ensure_results(use_insdn)
     classical = pd.read_csv(mc_path)
-    deep = pd.read_csv(dl_path)
-
     classical["type"] = "Κλασικό ML"
-    deep["type"] = "Deep Learning"
 
     cols = ["model", "accuracy", "precision", "recall", "f1", "type"]
-    merged = pd.concat([classical[cols], deep[cols]], ignore_index=True)
+    frames = [classical[cols]]
+    if dl_path is not None and os.path.exists(dl_path):
+        deep = pd.read_csv(dl_path)
+        deep["type"] = "Deep Learning"
+        frames.append(deep[cols])
+    else:
+        print("[INFO] Χωρίς Deep Learning αποτελέσματα — σύγκριση μόνο κλασικών μοντέλων.")
+
+    merged = pd.concat(frames, ignore_index=True)
     merged = merged.sort_values("f1", ascending=False).reset_index(drop=True)
 
     print("\n" + "=" * 78)
@@ -61,7 +73,7 @@ def main(use_insdn=False):
     print("=" * 78)
     print(merged.to_string(index=False))
 
-    out_csv = os.path.join(config.RESULTS_DIR, "final_comparison.csv")
+    out_csv = os.path.join(config.RESULTS_DIR, f"final_comparison{suffix}.csv")
     merged.to_csv(out_csv, index=False)
     print(f"\n[OK] {out_csv}")
 
@@ -83,7 +95,7 @@ def main(use_insdn=False):
     plt.legend(title="Κατηγορία", loc="lower right")
     plt.ylim(min(0.9, order["f1"].min() - 0.03), 1.005)  # zoom μετά το annotate
     plt.tight_layout()
-    out_png = os.path.join(config.RESULTS_DIR, "final_comparison.png")
+    out_png = os.path.join(config.RESULTS_DIR, f"final_comparison{suffix}.png")
     plt.savefig(out_png, dpi=150); plt.close()
     print(f"[OK] {out_png}")
     print("\n[ΟΛΟΚΛΗΡΩΘΗΚΕ] Τελική σύγκριση στο results/.")

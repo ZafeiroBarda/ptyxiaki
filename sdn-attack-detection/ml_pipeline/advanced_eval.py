@@ -10,10 +10,10 @@ advanced_eval.py  (ΜΕΘΟΔΟΣ Β — προχωρημένη αξιολόγη
 
   2. ROC καμπύλες (one-vs-rest) + AUC ανά κλάση και micro/macro average.
 
-Παράγει:
-  results/cross_validation.csv
-  results/cross_validation.png
-  results/roc_curves.png
+Παράγει (suffix _insdn μόνο με --insdn, ώστε να μη γράφονται πάνω στα synthetic):
+  results/cross_validation[_insdn].csv
+  results/cross_validation[_insdn].png
+  results/roc_curves[_insdn].png
 
 Χρήση:
   python3 ml_pipeline/advanced_eval.py
@@ -89,8 +89,12 @@ def run_cross_validation(X, y, k=5, groups=None):
     for name, model in cv_models().items():
         print(f"[*] {k}-fold CV: {name}")
         pipe = Pipeline([("scaler", StandardScaler()), ("model", model)])
+        # n_jobs=1 εδώ επίτηδες: το μοντέλο μέσα στο pipe (RF/KNN) έχει ήδη
+        # n_jobs=-1. Παραλληλοποίηση και στα folds ΚΑΙ στο μοντέλο ταυτόχρονα
+        # οδηγεί σε oversubscription διεργασιών και σε κολλήματα/leaked
+        # semaphores του joblib σε ορισμένα περιβάλλοντα.
         scores = cross_val_score(pipe, X, y, cv=cv, scoring="f1_macro",
-                                 n_jobs=-1, **split_args)
+                                 n_jobs=1, **split_args)
         rows.append({
             "model": name,
             "f1_mean": scores.mean(),
@@ -162,6 +166,9 @@ def plot_roc(model, X_train, X_test, y_train, y_test, class_names, out_path):
 
 def main(use_insdn=False, k=5):
     os.makedirs(config.RESULTS_DIR, exist_ok=True)
+    # Ίδια σύμβαση ονομασίας με το train.py: suffix _insdn μόνο για το InSDN
+    # run, ώστε να μην αντικαθίστανται τα synthetic αρχεία (και αντίστροφα).
+    suffix = "_insdn" if use_insdn else ""
     df = preprocess.load_insdn() if use_insdn else preprocess.load_synthetic()
     data = preprocess.prepare(df, scale=True,
                               split=config.SPLIT_STRATEGY,
@@ -177,15 +184,15 @@ def main(use_insdn=False, k=5):
 
     print("=== STRATIFIED GROUP K-FOLD CROSS-VALIDATION ===")
     cv_df = run_cross_validation(X_all, y_all, k=k, groups=groups)
-    cv_df.to_csv(os.path.join(config.RESULTS_DIR, "cross_validation.csv"), index=False)
+    cv_df.to_csv(os.path.join(config.RESULTS_DIR, f"cross_validation{suffix}.csv"), index=False)
     print("\n", cv_df.to_string(index=False))
-    plot_cv(cv_df, os.path.join(config.RESULTS_DIR, "cross_validation.png"))
+    plot_cv(cv_df, os.path.join(config.RESULTS_DIR, f"cross_validation{suffix}.png"))
 
     print("\n=== ROC CURVES ===")
     rf = RandomForestClassifier(n_estimators=120, n_jobs=-1,
                                 random_state=config.RANDOM_STATE)
     plot_roc(rf, data["X_train"], data["X_test"], data["y_train"], data["y_test"],
-             data["class_names"], os.path.join(config.RESULTS_DIR, "roc_curves.png"))
+             data["class_names"], os.path.join(config.RESULTS_DIR, f"roc_curves{suffix}.png"))
     print("\n[ΟΛΟΚΛΗΡΩΘΗΚΕ] Προχωρημένη αξιολόγηση στο results/.")
 
 

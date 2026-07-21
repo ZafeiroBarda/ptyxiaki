@@ -31,7 +31,6 @@ INCLUDE_FILES = [
     # περνά ΑΜΕΣΩΣ μετά την αποσυμπίεση, χωρίς να χρειάζεται πρώτα αναπαραγωγή του.
     "data/sdn_flows_synthetic.csv",
     "docs/Diplomatiki_Full.pdf",
-    "docs/Τεχνική_Αναφορά_Μοντέλα_και_Ροή_Δεδομένων.pdf",
     "docs/architecture_mapping.md",
 ]
 INCLUDE_DIRS = ["app_sdn", "ml_pipeline", "simulation", "controller",

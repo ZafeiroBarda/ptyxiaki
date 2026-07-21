@@ -24,8 +24,8 @@ Two distinct experiment paths, kept separate on purpose:
 
 > \* False positives in data exfiltration and lateral movement are expected: high-bandwidth hosts
 > and scan-originating hosts exhibit anomalous patterns that the unsupervised Isolation Forest
-> correctly flags as outliers. This is discussed in the thesis as a known trade-off of
-> unsupervised detection.
+> statistically flags as outliers, although operationally these detections constitute false
+> positives. This is discussed in the thesis as a known trade-off of unsupervised detection.
 >
 > The ARP spoofing itself is **not** recognised by aggregate statistical detection; the attacker
 > is blocked only because of accompanying anomalous activity (see thesis §6.8.6).
@@ -75,26 +75,12 @@ stack restarts). Aggregates in `results/live/packet_level_repeated_stats.csv`; n
 
 \* First-dropped-packet time has ~±0.5 s sampling accuracy (DROP counter polled every 0.5 s).
 
-**Network impact (legit host, measured quantities only):** 0% packet loss in every phase of every
-cycle; mean RTT ~4.5 ms (normal) / ~4.3 ms (under attack) / ~4.5 ms (after recovery). Within the
-measured quantities (loss and RTT of the ping traffic) the mitigation isolates the attacker without
+**Network impact (legit host, measured quantities only):** 0% packet loss across all 10 `normal`
+cycles and all 10 `under_attack` cycles, and in the single available `after_recovery` measurement
+(`results/live/network_impact.csv` — recovery was sampled once, not across all 10 cycles); mean RTT
+~4.5 ms (normal) / ~4.3 ms (under attack) / ~4.5 ms (after recovery, n=1). Within the measured
+quantities (loss and RTT of the ping traffic) the mitigation isolates the attacker without
 degrading legitimate traffic; throughput, jitter and controller CPU/RAM were not measured.
-
----
-
-## Demo Run (demo_10min.sh)
-
-Run ID: `demo_run_20260620_031742`
-
-| Field | Value |
-|---|---|
-| Scenario | SYN Flood h6 → h5 |
-| Detection time | < 1 s |
-| Attacker (10.0.0.6) blocked | **YES** |
-| False positives | **0** |
-| New detections during demo | 34 |
-| Dashboard | http://localhost:8050 |
-| Results directory | `results/live/demo_run_20260620_031742/` |
 
 ---
 

@@ -3,16 +3,24 @@
 # run_all.sh — Τρέχει ΟΛΟΚΛΗΡΟ το Python pipeline (Μέθοδος Β + offline demo).
 #
 # Χρήση:
-#   bash run_all.sh            # ΕΠΙΣΗΜΗ ΑΝΑΠΑΡΑΓΩΓΗ των αποτελεσμάτων του κειμένου
+#   bash run_all.sh            # Επίσημη αναπαραγωγή του βασικού synthetic ML κορμού
 #                              # (συνθετικό dataset, προεπιλεγμένη εκδοχή)
 #   bash run_all.sh --hard     # παραλλαγή ευρωστίας: +θόρυβος & επικάλυψη κλάσεων
-#   bash run_all.sh --insdn    # με το πραγματικό InSDN (βάλε data/InSDN_dataset.csv)
+#   bash run_all.sh --insdn    # με το πραγματικό InSDN (βάλε data/InSDN_dataset.csv) —
+#                              # ΜΟΝΟ τα supervised/CV/final-comparison βήματα αφορούν
+#                              # το InSDN· το live replay (ΒΗΜΑ 6) και το adversarial
+#                              # training (ΒΗΜΑ 8) συνεχίζουν να χρησιμοποιούν τα
+#                              # synthetic artifacts τους (βλ. §6 στο README).
 #
-# ΣΗΜΕΙΩΣΗ ΑΝΑΠΑΡΑΓΩΓΙΜΟΤΗΤΑΣ: η προεπιλεγμένη εκτέλεση αναπαράγει ΑΚΡΙΒΩΣ τους
-# πίνακες και τα σχήματα της διπλωματικής. Το συνθετικό dataset παράγεται
-# ντετερμινιστικά (σταθερό seed), οπότε το data/sdn_flows_synthetic.csv
-# αναδημιουργείται bit-for-bit. Η εκδοχή --hard δίνει ΔΙΑΦΟΡΕΤΙΚΑ (χαμηλότερα,
-# πιο ρεαλιστικά) νούμερα και ΔΕΝ αντιστοιχεί στα επίσημα αποτελέσματα.
+# ΣΗΜΕΙΩΣΗ ΑΝΑΠΑΡΑΓΩΓΙΜΟΤΗΤΑΣ: η προεπιλεγμένη εκτέλεση αναπαράγει τον βασικό
+# supervised ML/DL/CV κορμό (πίνακες & σχήματα §6.2/§6.4). ΔΕΝ καλύπτει leakage
+# study, hyperparameter tuning, offline Isolation Forest, SHAP, API-level ή
+# packet-level πειράματα — γι' αυτά χρησιμοποίησε reproduce_thesis.sh (offline)
+# και run_live_experiments.sh / run_packet_level_experiment.sh. Το συνθετικό
+# dataset παράγεται ντετερμινιστικά (σταθερό seed), οπότε το
+# data/sdn_flows_synthetic.csv αναδημιουργείται bit-for-bit. Η εκδοχή --hard
+# δίνει ΔΙΑΦΟΡΕΤΙΚΑ (χαμηλότερα, πιο ρεαλιστικά) νούμερα και ΔΕΝ αντιστοιχεί
+# στα επίσημα αποτελέσματα.
 #
 # ΔΕΝ απαιτεί Linux/Mininet — τρέχει σε οποιοδήποτε OS με Python.
 ###############################################################################
@@ -64,6 +72,14 @@ if python3 -c "import tensorflow" 2>/dev/null; then
 else
     echo ">>> tensorflow not installed — παράλειψη Deep Learning"
     echo ">>> (προαιρετική εγκατάσταση: pip install tensorflow)"
+    if [ "$INSDN_FLAG" = "--insdn" ]; then DL_SUFFIX="_insdn"; else DL_SUFFIX=""; fi
+    DL_CSV="results/dl_comparison${DL_SUFFIX}.csv"
+    if [ -f "$DL_CSV" ]; then
+        echo ">>> ΣΗΜΕΙΩΣΗ: το $DL_CSV υπάρχει ήδη από προγενέστερη εκτέλεση με"
+        echo ">>> TensorFlow εγκατεστημένο — η ΤΩΡΙΝΗ εκτέλεση ΔΕΝ παρήγαγε νέες"
+        echo ">>> Deep Learning μετρικές. Το ΒΗΜΑ 5 θα το συμπεριλάβει ως"
+        echo ">>> προϋπάρχον, ήδη επαληθευμένο artifact."
+    fi
 fi
 
 echo ""
@@ -89,11 +105,15 @@ echo ""
 echo "==================================================================="
 echo " ΒΗΜΑ 7/8 — Extended ML comparison (XGBoost / Autoencoder / ablation)"
 echo "==================================================================="
-if python3 -c "import xgboost" 2>/dev/null; then
-    python3 ml_pipeline/extended_eval.py $INSDN_FLAG
+if [ ! -f "data/InSDN_dataset.csv" ]; then
+    echo ">>> ΠΑΡΑΛΕΙΨΗ: data/InSDN_dataset.csv δεν βρέθηκε."
+    echo ">>> Αυτό το βήμα (extended_eval.py / thesis_eval.py) χρειάζεται πάντα το"
+    echo ">>> πραγματικό InSDN dataset, ανεξαρτήτως --insdn (βλ. data/README_DATA.md)."
+elif python3 -c "import xgboost" 2>/dev/null; then
+    python3 ml_pipeline/extended_eval.py
 else
     echo ">>> xgboost not installed — τρέχω thesis_eval.py αντί"
-    python3 ml_pipeline/thesis_eval.py $INSDN_FLAG
+    python3 ml_pipeline/thesis_eval.py
 fi
 
 echo ""
@@ -104,6 +124,8 @@ python3 ml_pipeline/adversarial_training.py
 
 echo ""
 echo "==================================================================="
-echo " ΟΛΟΚΛΗΡΩΘΗΚΕ! Όλα τα αποτελέσματα & γραφήματα στον φάκελο results/"
+echo " Ολοκληρώθηκε ο βασικός offline κορμός. Τα πρόσθετα offline πειράματα"
+echo " (leakage, tuning, Isolation Forest, SHAP) εκτελούνται με reproduce_thesis.sh."
+echo " Αποτελέσματα & γραφήματα στον φάκελο results/"
 echo "==================================================================="
 ls -1 results/

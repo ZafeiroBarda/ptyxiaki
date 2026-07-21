@@ -107,15 +107,19 @@ def main(use_insdn=False):
     res_df, data = out["results_df"], out["data"]
     best_model, best_name = out["best_model"], out["best_name"]
 
+    # Ίδια σύμβαση ονομασίας με το train.py: suffix _insdn μόνο για το InSDN
+    # run, ώστε τα synthetic και InSDN γραφήματα να μην αλληλεπικαλύπτονται.
+    suffix = "_insdn" if use_insdn else ""
+
     print("\n[*] Δημιουργία γραφημάτων αξιολόγησης...")
-    plot_model_comparison(res_df, os.path.join(config.RESULTS_DIR, "model_comparison.png"))
+    plot_model_comparison(res_df, os.path.join(config.RESULTS_DIR, f"model_comparison{suffix}.png"))
     plot_confusion(best_model, data,
-                   os.path.join(config.RESULTS_DIR, "confusion_matrix.png"),
+                   os.path.join(config.RESULTS_DIR, f"confusion_matrix{suffix}.png"),
                    f"Confusion Matrix — {best_name}")
     plot_feature_importance(best_model, data["feature_columns"],
-                            os.path.join(config.RESULTS_DIR, "feature_importance.png"))
+                            os.path.join(config.RESULTS_DIR, f"feature_importance{suffix}.png"))
     save_classification_report(best_model, data,
-                               os.path.join(config.RESULTS_DIR, "classification_report.txt"))
+                               os.path.join(config.RESULTS_DIR, f"classification_report{suffix}.txt"))
     print("\n[ΟΛΟΚΛΗΡΩΘΗΚΕ] Όλα τα αποτελέσματα στον φάκελο results/.")
 
 

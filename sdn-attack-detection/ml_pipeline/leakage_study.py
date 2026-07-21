@@ -17,9 +17,10 @@ leakage_study.py — Ποσοτικοποίηση της διαρροής μέσ
 
 Χρήση:  python3 ml_pipeline/leakage_study.py            # συνθετικό
         python3 ml_pipeline/leakage_study.py --insdn    # InSDN
-Έξοδοι: results/leakage_duplicates.csv
-        results/leakage_split_comparison.csv
-        results/leakage_split_comparison.png
+Έξοδοι (suffix _insdn μόνο με --insdn, ώστε να μη γράφονται πάνω στα synthetic):
+        results/leakage_duplicates[_insdn].csv
+        results/leakage_split_comparison[_insdn].csv
+        results/leakage_split_comparison[_insdn].png
 """
 import os
 import sys
@@ -138,6 +139,8 @@ def main(use_insdn=False):
     df = preprocess.load_insdn() if use_insdn else preprocess.load_synthetic()
     feats = [c for c in config.FEATURE_COLUMNS if c in df.columns]
     tag = "InSDN" if use_insdn else "συνθετικό"
+    # Ίδια σύμβαση ονομασίας με το train.py: suffix _insdn μόνο για το InSDN run.
+    suffix = "_insdn" if use_insdn else ""
 
     print("=" * 68)
     print(f" ΜΕΛΕΤΗ ΔΙΑΡΡΟΗΣ ΜΕΣΩ ΔΙΠΛΟΤΥΠΩΝ — {tag} ({len(df)} ροές)")
@@ -146,13 +149,13 @@ def main(use_insdn=False):
     dup = duplicate_report(df, feats)
     print("\n--- Διπλότυπα ανά κλάση ---")
     print(dup.to_string(index=False))
-    dup.to_csv(os.path.join(config.RESULTS_DIR, "leakage_duplicates.csv"), index=False)
+    dup.to_csv(os.path.join(config.RESULTS_DIR, f"leakage_duplicates{suffix}.csv"), index=False)
 
     print("\n--- Απόδοση ανά στρατηγική διαχωρισμού ---")
     rows = evaluate(df, feats, "random") + evaluate(df, feats, "group")
     cmp = pd.DataFrame(rows)
     print("\n" + cmp.to_string(index=False))
-    cmp.to_csv(os.path.join(config.RESULTS_DIR, "leakage_split_comparison.csv"),
+    cmp.to_csv(os.path.join(config.RESULTS_DIR, f"leakage_split_comparison{suffix}.csv"),
                index=False)
 
     # Γράφημα σύγκρισης
@@ -166,7 +169,7 @@ def main(use_insdn=False):
     for c in ax.containers:
         ax.bar_label(c, fmt="%.3f", fontsize=8)
     plt.tight_layout()
-    out = os.path.join(config.RESULTS_DIR, "leakage_split_comparison.png")
+    out = os.path.join(config.RESULTS_DIR, f"leakage_split_comparison{suffix}.png")
     plt.savefig(out, dpi=150)
     plt.close()
     print(f"\n[OK] {out}")

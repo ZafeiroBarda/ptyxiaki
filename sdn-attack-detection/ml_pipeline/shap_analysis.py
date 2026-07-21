@@ -5,18 +5,28 @@ shap_analysis.py  — Ανάλυση Ερμηνευσιμότητας (Explainab
 Χρησιμοποιεί το SHAP (SHapley Additive exPlanations) για να εξηγήσει
 τις αποφάσεις του Random Forest μοντέλου ανίχνευσης επιθέσεων SDN.
 
-Παράγει τρία γραφήματα στο results/:
-  1. shap_summary.png      — Beeswarm plot: κατεύθυνση & μέγεθος επίδρασης ανά feature
-  2. shap_bar.png          — Ραβδόγραμμα: μέση |SHAP| τιμή ανά feature (global)
-  3. shap_class_heatmap.png — Heatmap: ποια features ανιχνεύουν ποια επίθεση
+Παράγει τρία γραφήματα + ένα CSV στο results/ (suffix _insdn μόνο με --insdn,
+ώστε να μη γράφονται πάνω στα synthetic):
+  1. shap_summary[_insdn].png       — Beeswarm plot: κατεύθυνση & μέγεθος επίδρασης ανά feature
+  2. shap_bar[_insdn].png           — Ραβδόγραμμα: μέση |SHAP| τιμή ανά feature (global)
+  3. shap_class_heatmap[_insdn].png — Heatmap: ποια features ανιχνεύουν ποια επίθεση
+  4. shap_feature_importance[_insdn].csv
+
+Στο synthetic (προεπιλογή) φορτώνεται το ήδη εκπαιδευμένο canonical
+best_model.pkl (ίδιο με deployment). Στο --insdn ΔΕΝ υπάρχει αποθηκευμένο
+canonical InSDN μοντέλο (το train.py δεν το σειριοποιεί για --insdn, βλ.
+σχόλια εκεί) — εκπαιδεύεται φρέσκο Random Forest αποκλειστικά για τη SHAP
+ανάλυση.
 
 Χρήση:
   python3 ml_pipeline/shap_analysis.py
+  python3 ml_pipeline/shap_analysis.py --insdn
 """
 
 import os
 import sys
 import json
+import argparse
 import warnings
 import numpy as np
 import pandas as pd
@@ -26,6 +36,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import shap
+from sklearn.ensemble import RandomForestClassifier
 
 warnings.filterwarnings("ignore")
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -64,7 +75,11 @@ FEATURE_LABELS = {
 }
 
 
+SUBSAMPLE_INSDN = 60_000
+
+
 def load_artifacts():
+    """Canonical synthetic artifacts (μόνο για το προεπιλεγμένο, μη-InSDN run)."""
     model  = joblib.load(os.path.join(MODELS_DIR, "best_model.pkl"))
     scaler = joblib.load(os.path.join(MODELS_DIR, "scaler.pkl"))
     le     = joblib.load(os.path.join(MODELS_DIR, "label_encoder.pkl"))
@@ -73,14 +88,31 @@ def load_artifacts():
     return model, scaler, le, feature_cols
 
 
-def get_data(feature_cols, scaler, sample=2000):
-    df   = preprocess.load_synthetic()
-    data = preprocess.prepare(df, scale=True, feature_columns=feature_cols)
-    # Παίρνουμε stratified δείγμα από το test set για ταχύτητα
+def get_model_and_data(use_insdn=False, sample=2000):
+    """
+    Επιστρέφει (model, X_sample, y_sample, class_names, feature_cols).
+
+    synthetic: φορτώνει το ήδη εκπαιδευμένο canonical best_model.pkl.
+    insdn:     εκπαιδεύει φρέσκο RF (δεν υπάρχει αποθηκευμένο InSDN canonical
+               μοντέλο — βλ. σχόλια του train.py).
+    """
+    if use_insdn:
+        df = preprocess.load_insdn()
+        feature_cols = [c for c in config.FEATURE_COLUMNS if c in df.columns]
+        data = preprocess.prepare(df, scale=True, feature_columns=feature_cols,
+                                  subsample=SUBSAMPLE_INSDN)
+        model = RandomForestClassifier(n_estimators=200, n_jobs=-1,
+                                       random_state=config.RANDOM_STATE)
+        model.fit(data["X_train"], data["y_train"])
+    else:
+        model, _scaler, _le, feature_cols = load_artifacts()
+        df = preprocess.load_synthetic()
+        data = preprocess.prepare(df, scale=True, feature_columns=feature_cols)
+
     X, y = data["X_test"], data["y_test"]
     rng  = np.random.default_rng(config.RANDOM_STATE)
     idx  = rng.choice(len(X), size=min(sample, len(X)), replace=False)
-    return X[idx], y[idx], data["class_names"]
+    return model, X[idx], y[idx], data["class_names"], feature_cols
 
 
 def compute_shap(model, X):
@@ -93,7 +125,7 @@ def compute_shap(model, X):
     return shap_values   # (n_samples, n_features, n_classes)
 
 
-def plot_summary(shap_values, X, feature_cols, class_names):
+def plot_summary(shap_values, X, feature_cols, class_names, suffix=""):
     """Beeswarm plot για την κλάση DDoS (πιο αντιπροσωπευτική για κυβερνοασφάλεια)."""
     ddos_idx  = class_names.index("DDoS") if "DDoS" in class_names else 0
     sv_ddos   = shap_values[:, :, ddos_idx]
@@ -112,13 +144,13 @@ def plot_summary(shap_values, X, feature_cols, class_names):
               fontsize=13, pad=12)
     plt.xlabel("SHAP τιμή (αρνητική = μειώνει πιθανότητα DDoS, θετική = αυξάνει)")
     plt.tight_layout()
-    out = os.path.join(RESULTS_DIR, "shap_summary.png")
+    out = os.path.join(RESULTS_DIR, f"shap_summary{suffix}.png")
     plt.savefig(out, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"[OK] {out}")
 
 
-def plot_bar(shap_values, feature_cols):
+def plot_bar(shap_values, feature_cols, suffix=""):
     """Ραβδόγραμμα: mean(|SHAP|) ανά feature — global importance."""
     mean_abs = np.mean(np.abs(shap_values).sum(axis=2), axis=0)
     feat_labs = [FEATURE_LABELS.get(f, f) for f in feature_cols]
@@ -136,7 +168,7 @@ def plot_bar(shap_values, feature_cols):
                  "(Random Forest, σύνολο κλάσεων)", fontsize=12)
     ax.grid(axis="x", linestyle="--", alpha=0.4)
     plt.tight_layout()
-    out = os.path.join(RESULTS_DIR, "shap_bar.png")
+    out = os.path.join(RESULTS_DIR, f"shap_bar{suffix}.png")
     plt.savefig(out, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"[OK] {out}")
@@ -147,12 +179,13 @@ def plot_bar(shap_values, feature_cols):
         "feature_el": feat_labs,
         "mean_abs_shap": mean_abs,
     }).sort_values("mean_abs_shap", ascending=False).reset_index(drop=True)
-    df_imp.to_csv(os.path.join(RESULTS_DIR, "shap_feature_importance.csv"), index=False)
-    print(f"[OK] {os.path.join(RESULTS_DIR, 'shap_feature_importance.csv')}")
+    csv_out = os.path.join(RESULTS_DIR, f"shap_feature_importance{suffix}.csv")
+    df_imp.to_csv(csv_out, index=False)
+    print(f"[OK] {csv_out}")
     return df_imp
 
 
-def plot_class_heatmap(shap_values, feature_cols, class_names):
+def plot_class_heatmap(shap_values, feature_cols, class_names, suffix=""):
     """Heatmap: μέση |SHAP| ανά (class, feature) — δείχνει τι ανιχνεύει κάθε επίθεση."""
     # matrix: (n_classes, n_features)
     mat = np.mean(np.abs(shap_values), axis=0).T
@@ -188,7 +221,7 @@ def plot_class_heatmap(shap_values, feature_cols, class_names):
                     color="black" if mat_norm[r, c] < 0.7 else "white")
 
     plt.tight_layout()
-    out = os.path.join(RESULTS_DIR, "shap_class_heatmap.png")
+    out = os.path.join(RESULTS_DIR, f"shap_class_heatmap{suffix}.png")
     plt.savefig(out, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"[OK] {out}")
@@ -211,23 +244,26 @@ def print_findings(df_imp, class_names, shap_values, feature_cols):
         print(f"  {cls:8s}  ->  {feat_name}")
 
 
-def main():
+def main(use_insdn=False):
+    suffix = "_insdn" if use_insdn else ""
     os.makedirs(RESULTS_DIR, exist_ok=True)
     print("[*] Φόρτωση μοντέλου και δεδομένων...")
-    model, scaler, le, feature_cols = load_artifacts()
-    X, y, class_names = get_data(feature_cols, scaler, sample=2000)
+    model, X, y, class_names, feature_cols = get_model_and_data(use_insdn=use_insdn, sample=2000)
 
     print(f"[*] Υπολογισμός SHAP τιμών ({len(X)} δείγματα × {len(feature_cols)} features)...")
     shap_values = compute_shap(model, X)
     print(f"    Shape: {shap_values.shape}")
 
-    plot_summary(shap_values, X, feature_cols, class_names)
-    df_imp = plot_bar(shap_values, feature_cols)
-    plot_class_heatmap(shap_values, feature_cols, class_names)
+    plot_summary(shap_values, X, feature_cols, class_names, suffix)
+    df_imp = plot_bar(shap_values, feature_cols, suffix)
+    plot_class_heatmap(shap_values, feature_cols, class_names, suffix)
     print_findings(df_imp, class_names, shap_values, feature_cols)
 
     print("\n[ΟΛΟΚΛΗΡΩΘΗΚΕ] Γραφήματα SHAP αποθηκεύτηκαν στο results/")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--insdn", action="store_true")
+    args = parser.parse_args()
+    main(use_insdn=args.insdn)
