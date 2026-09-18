@@ -1,0 +1,13 @@
+# Περιβάλλοντα και προσωρινά
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+# Προσωρινά στιγμιότυπα και εξαγωγές
+/dash_*.png
+/_dash_test.png
+/flows.csv
+*.zip
+# Προσωρινά του Word
+~$*
