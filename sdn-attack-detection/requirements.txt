@@ -28,7 +28,7 @@ lightgbm>=3.3
 flask>=2.3
 dash>=2.14
 plotly>=5.18
-requests>=2.31
+requests>=2.33.0
 
 # --- Tests ---
 pytest>=7.4
