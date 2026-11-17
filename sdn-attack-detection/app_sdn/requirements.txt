@@ -4,7 +4,7 @@
 # -> trained_with) και η φόρτωσή τους με παλαιότερη έκδοση βγάζει
 # InconsistentVersionWarning.
 flask>=3.0
-requests>=2.31
+requests>=2.33.0
 scikit-learn>=1.9
 numpy>=1.24
 pandas>=2.0
