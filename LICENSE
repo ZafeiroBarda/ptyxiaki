@@ -19,17 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
--------------------------------------------------------------------------------
-Scope of this license
-
-The MIT License above applies to the source code, scripts and configuration
-files in this repository.
-
-It does NOT apply to the thesis document and its related reports in
-sdn-attack-detection/docs/ (.docx and .pdf files). Those are
-Copyright (c) 2026 Zafeiro Barda, all rights reserved. You may read them and
-cite them with proper attribution, but you may not copy, modify or republish
-them without written permission from the author.
-
-Third party datasets (e.g. InSDN) remain under their original licenses.
