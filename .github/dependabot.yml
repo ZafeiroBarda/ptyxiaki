@@ -1,0 +1,10 @@
+# Security updates for pip/Docker are handled by Dependabot security updates
+# (repository setting). Regular version bumps are limited to GitHub Actions
+# so the pinned thesis environment (requirements-ml-lock.txt) stays reproducible.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5

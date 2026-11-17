@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, master]
 
+permissions:
+  contents: read
+
 # All project files live in the sdn-attack-detection/ subfolder, not the repo root.
 defaults:
   run:
